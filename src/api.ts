@@ -15,9 +15,15 @@ export interface SourcesResponse {
   summary: SourceSummary;
 }
 
+export interface SessionResponse {
+  authRequired: boolean;
+  authenticated: boolean;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    credentials: 'same-origin',
     ...init
   });
   if (!response.ok) {
@@ -28,6 +34,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  session: () => request<SessionResponse>('/api/auth/session'),
+  login: (passcode: string) => request<SessionResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify({ passcode }) }),
+  logout: () => request<SessionResponse>('/api/auth/logout', { method: 'POST' }),
   trip: () => request<Trip>('/api/trip'),
   itinerary: () => request<DayPlan[]>('/api/itinerary'),
   saveItinerary: (days: Partial<DayPlan>[]) => request<DayPlan[]>('/api/itinerary', { method: 'PATCH', body: JSON.stringify(days) }),

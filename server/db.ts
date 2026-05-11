@@ -5,20 +5,20 @@ import { buildSeedData, type SeedData } from './seed';
 import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types';
 
 export interface TripDatabase {
-  getTrip(): Trip;
-  saveTrip(trip: Trip): Trip;
-  getItinerary(): DayPlan[];
-  saveItinerary(itinerary: DayPlan[]): DayPlan[];
-  getBudget(): BudgetItem[];
-  saveBudget(budget: BudgetItem[]): BudgetItem[];
-  getTasks(): BookingTask[];
-  saveTasks(tasks: BookingTask[]): BookingTask[];
-  getSources(): SourceLink[];
-  saveSources(sources: SourceLink[]): SourceLink[];
-  getDrafts(): ResearchDraft[];
-  saveDrafts(drafts: ResearchDraft[]): ResearchDraft[];
-  getResearchAnswers(): ResearchAnswer[];
-  saveResearchAnswers(answers: ResearchAnswer[]): ResearchAnswer[];
+  getTrip(): Promise<Trip>;
+  saveTrip(trip: Trip): Promise<Trip>;
+  getItinerary(): Promise<DayPlan[]>;
+  saveItinerary(itinerary: DayPlan[]): Promise<DayPlan[]>;
+  getBudget(): Promise<BudgetItem[]>;
+  saveBudget(budget: BudgetItem[]): Promise<BudgetItem[]>;
+  getTasks(): Promise<BookingTask[]>;
+  saveTasks(tasks: BookingTask[]): Promise<BookingTask[]>;
+  getSources(): Promise<SourceLink[]>;
+  saveSources(sources: SourceLink[]): Promise<SourceLink[]>;
+  getDrafts(): Promise<ResearchDraft[]>;
+  saveDrafts(drafts: ResearchDraft[]): Promise<ResearchDraft[]>;
+  getResearchAnswers(): Promise<ResearchAnswer[]>;
+  saveResearchAnswers(answers: ResearchAnswer[]): Promise<ResearchAnswer[]>;
   close(): void;
 }
 
@@ -61,20 +61,20 @@ class SqliteTripDatabase implements TripDatabase {
     return value;
   }
 
-  getTrip() { return this.get<Trip>('trip'); }
-  saveTrip(trip: Trip) { return this.set('trip', trip); }
-  getItinerary() { return this.get<DayPlan[]>('itinerary'); }
-  saveItinerary(itinerary: DayPlan[]) { return this.set('itinerary', itinerary); }
-  getBudget() { return this.get<BudgetItem[]>('budget'); }
-  saveBudget(budget: BudgetItem[]) { return this.set('budget', budget); }
-  getTasks() { return this.get<BookingTask[]>('tasks'); }
-  saveTasks(tasks: BookingTask[]) { return this.set('tasks', tasks); }
-  getSources() { return this.get<SourceLink[]>('sources'); }
-  saveSources(sources: SourceLink[]) { return this.set('sources', sources); }
-  getDrafts() { return this.get<ResearchDraft[]>('drafts'); }
-  saveDrafts(drafts: ResearchDraft[]) { return this.set('drafts', drafts); }
-  getResearchAnswers() { return this.get<ResearchAnswer[]>('researchAnswers'); }
-  saveResearchAnswers(answers: ResearchAnswer[]) { return this.set('researchAnswers', answers); }
+  async getTrip() { return this.get<Trip>('trip'); }
+  async saveTrip(trip: Trip) { return this.set('trip', trip); }
+  async getItinerary() { return this.get<DayPlan[]>('itinerary'); }
+  async saveItinerary(itinerary: DayPlan[]) { return this.set('itinerary', itinerary); }
+  async getBudget() { return this.get<BudgetItem[]>('budget'); }
+  async saveBudget(budget: BudgetItem[]) { return this.set('budget', budget); }
+  async getTasks() { return this.get<BookingTask[]>('tasks'); }
+  async saveTasks(tasks: BookingTask[]) { return this.set('tasks', tasks); }
+  async getSources() { return this.get<SourceLink[]>('sources'); }
+  async saveSources(sources: SourceLink[]) { return this.set('sources', sources); }
+  async getDrafts() { return this.get<ResearchDraft[]>('drafts'); }
+  async saveDrafts(drafts: ResearchDraft[]) { return this.set('drafts', drafts); }
+  async getResearchAnswers() { return this.get<ResearchAnswer[]>('researchAnswers'); }
+  async saveResearchAnswers(answers: ResearchAnswer[]) { return this.set('researchAnswers', answers); }
   close() { this.db.close(); }
 }
 

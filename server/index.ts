@@ -2,10 +2,10 @@ import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
 import { createApp } from './app';
-import { createDatabase } from './db';
+import { createRuntimeDatabase } from './databaseFactory';
 
 const port = Number(process.env.PORT || 4317);
-const db = createDatabase();
+const db = createRuntimeDatabase({ isVercel: false });
 const app = createApp({ db });
 const distPath = path.resolve(process.cwd(), 'dist');
 

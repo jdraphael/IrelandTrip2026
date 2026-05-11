@@ -22,6 +22,7 @@ const tripResponse = {
 describe('Ireland trip app', () => {
   it('renders the command center with seeded trip context', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
         { id: 'day-1', day: 1, title: 'Travel day', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'dub', name: 'Dublin Airport', kind: 'airport', latitude: 53, longitude: -6 }], notes: 'Go' },
@@ -44,6 +45,7 @@ describe('Ireland trip app', () => {
 
   it('lets the map switch from day view to all itinerary stops', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
         { id: 'day-1', day: 1, title: 'Travel day', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'dub', name: 'Dublin Airport', kind: 'airport', latitude: 53, longitude: -6 }], notes: 'Go' },
@@ -68,6 +70,7 @@ describe('Ireland trip app', () => {
 
   it('offers a mouse-wheel zoom toggle on the map', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
         { id: 'day-1', day: 1, title: 'Dublin Zoo', dateLabel: 'June 2027', base: 'Dublin', stops: [{ id: 'zoo', name: 'Dublin Zoo', kind: 'activity', latitude: 53, longitude: -6 }], notes: 'Animals' }
@@ -88,5 +91,18 @@ describe('Ireland trip app', () => {
     expect(toggle).not.toBeChecked();
     await userEvent.click(toggle);
     expect(toggle).toBeChecked();
+  });
+
+  it('shows the family passcode login before loading hosted trip data', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: true, authenticated: false }));
+      return Promise.reject(new Error(`Unexpected trip data request before login: ${url}`));
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /Ireland Trip Agent/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Family passcode/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Unlock Planner/i })).toBeDisabled();
   });
 });

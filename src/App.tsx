@@ -428,6 +428,9 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [selectedDayId, setSelectedDayId] = useState('day-3');
   const [state, setState] = useState<AppState>({ itinerary: [], research: [] });
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -445,10 +448,36 @@ export default function App() {
   };
 
   useEffect(() => {
-    refresh()
-      .catch((issue) => setError(issue instanceof Error ? issue.message : 'Unable to load trip data'))
+    api.session()
+      .then(async (session) => {
+        setAuthRequired(session.authRequired);
+        setAuthenticated(session.authenticated);
+        if (session.authenticated) {
+          await refresh();
+        }
+      })
+      .catch((issue) => setError(issue instanceof Error ? issue.message : 'Unable to load session'))
       .finally(() => setLoading(false));
   }, []);
+
+  const login = async () => {
+    setError('');
+    try {
+      const session = await api.login(passcode);
+      setAuthenticated(session.authenticated);
+      if (session.authenticated) {
+        await refresh();
+      }
+    } catch {
+      setError('That passcode did not work. Check the family passcode and try again.');
+    }
+  };
+
+  const logout = async () => {
+    await api.logout();
+    setAuthenticated(false);
+    setState({ itinerary: [], research: [] });
+  };
 
   const activeSources = useMemo(() => state.sources?.items || [], [state.sources]);
 
@@ -493,6 +522,32 @@ export default function App() {
     return <main className="loading"><Loader2 className="spin" /> Loading Ireland Trip Agent...</main>;
   }
 
+  if (authRequired && !authenticated) {
+    return (
+      <main className="login-screen">
+        <section className="login-card">
+          <div className="brand-mark">IE</div>
+          <h1>Ireland Trip Agent</h1>
+          <p>Enter the family passcode to open the planner.</p>
+          <input
+            type="password"
+            value={passcode}
+            onChange={(event) => setPasscode(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void login();
+            }}
+            placeholder="Family passcode"
+            aria-label="Family passcode"
+          />
+          {error && <p className="warning">{error}</p>}
+          <button className="button primary full" onClick={login} disabled={!passcode.trim()}>
+            <ShieldCheck size={17} /> Unlock Planner
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -523,6 +578,7 @@ export default function App() {
           <div className="topbar-meta">
             <StatusPill tone="good">June 2027</StatusPill>
             <StatusPill>{state.trip?.travelers || 5} travelers</StatusPill>
+            {authRequired && <button className="button ghost compact" onClick={logout}>Log out</button>}
           </div>
         </header>
         {error && <button className="notice" onClick={() => setError('')}>{error}</button>}

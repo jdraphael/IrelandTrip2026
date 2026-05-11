@@ -71,15 +71,15 @@ function missingKeyAnswer(question: string): ResearchAnswer {
 export async function answerResearchQuestion({ question, deep = false, apiKey, db }: ResearchOptions): Promise<ResearchAnswer> {
   if (!apiKey) {
     const fallback = missingKeyAnswer(question);
-    db.saveResearchAnswers([fallback, ...db.getResearchAnswers()]);
+    await db.saveResearchAnswers([fallback, ...(await db.getResearchAnswers())]);
     return fallback;
   }
 
   const client = new OpenAI({ apiKey });
-  const trip = db.getTrip();
-  const itinerary = db.getItinerary();
-  const budget = db.getBudget();
-  const tasks = db.getTasks();
+  const trip = await db.getTrip();
+  const itinerary = await db.getItinerary();
+  const budget = await db.getBudget();
+  const tasks = await db.getTasks();
 
   const prompt = [
     `You are a strict, practical family trip research assistant for ${trip.title}.`,
@@ -113,18 +113,18 @@ export async function answerResearchQuestion({ question, deep = false, apiKey, d
     warnings: sourceSummary.warnings
   };
 
-  const existingSources = db.getSources();
-  db.saveSources([...existingSources, ...sources.filter((source) => !existingSources.some((existing) => existing.url === source.url))]);
-  db.saveResearchAnswers([answer, ...db.getResearchAnswers()]);
+  const existingSources = await db.getSources();
+  await db.saveSources([...existingSources, ...sources.filter((source) => !existingSources.some((existing) => existing.url === source.url))]);
+  await db.saveResearchAnswers([answer, ...(await db.getResearchAnswers())]);
   return answer;
 }
 
-export function applyDraftToDatabase(db: TripDatabase, draftId: string) {
-  const drafts = db.getDrafts();
+export async function applyDraftToDatabase(db: TripDatabase, draftId: string) {
+  const drafts = await db.getDrafts();
   const draft = drafts.find((item) => item.id === draftId);
   if (!draft) return undefined;
 
   const updatedDrafts: ResearchDraft[] = drafts.map((item) => (item.id === draftId ? { ...item, status: 'applied' } : item));
-  db.saveDrafts(updatedDrafts);
+  await db.saveDrafts(updatedDrafts);
   return { ...draft, status: 'applied' as const };
 }
