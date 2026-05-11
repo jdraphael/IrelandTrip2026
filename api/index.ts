@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createApp } from '../server/app';
-import { createRuntimeDatabase } from '../server/databaseFactory';
-import type { TripDatabase } from '../server/db';
+import { createApp } from '../server/app.js';
+import { createPostgresDatabase } from '../server/postgresDb.js';
+import type { TripDatabase } from '../server/tripDatabase.js';
 
 class ConfigurationErrorDatabase implements TripDatabase {
   constructor(private message: string) {}
@@ -28,12 +28,11 @@ class ConfigurationErrorDatabase implements TripDatabase {
 }
 
 function getHostedDatabase() {
-  try {
-    return createRuntimeDatabase({ isVercel: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Hosted database is not configured.';
-    return new ConfigurationErrorDatabase(message);
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    return new ConfigurationErrorDatabase('DATABASE_URL is required for Vercel deployments. Add Neon Postgres to the project and expose DATABASE_URL.');
   }
+  return createPostgresDatabase(databaseUrl);
 }
 
 const app = createApp({

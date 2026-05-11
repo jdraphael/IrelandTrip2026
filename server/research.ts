@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import type { ResearchAnswer, ResearchDraft, SourceLink, TripDatabase } from './db-types';
-import { classifySource, summarizeSources } from '../src/lib/sources';
+import type { ResearchAnswer, ResearchDraft, SourceLink, TripDatabase } from './db-types.js';
+import { classifySource, summarizeSources } from '../src/lib/sources.js';
 
 interface ResearchOptions {
   question: string;

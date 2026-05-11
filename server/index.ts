@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
-import { createApp } from './app';
-import { createRuntimeDatabase } from './databaseFactory';
+import { createApp } from './app.js';
+import { createRuntimeDatabase } from './databaseFactory.js';
 
 const port = Number(process.env.PORT || 4317);
 const db = createRuntimeDatabase({ isVercel: false });

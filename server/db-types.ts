@@ -1,2 +1,2 @@
-export type { TripDatabase } from './db';
-export type { ResearchAnswer, ResearchDraft, SourceLink } from '../src/types';
+export type { TripDatabase } from './tripDatabase.js';
+export type { ResearchAnswer, ResearchDraft, SourceLink } from '../src/types.js';

@@ -1,5 +1,5 @@
-import type { SourceLink } from '../src/types';
-import { classifySource } from '../src/lib/sources';
+import type { SourceLink } from '../src/types.js';
+import { classifySource } from '../src/lib/sources.js';
 
 export async function checkSource(url: string, title = url): Promise<SourceLink> {
   const checkedAt = new Date().toISOString();

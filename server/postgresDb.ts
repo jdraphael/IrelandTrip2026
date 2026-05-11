@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless';
-import { buildSeedData, type SeedData } from './seed';
-import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types';
-import type { TripDatabase } from './db';
+import { buildSeedData, type SeedData } from './seed.js';
+import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
+import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
 

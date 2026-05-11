@@ -2,13 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'node:crypto';
 import { z } from 'zod';
-import { calculateBudgetSummary } from '../src/lib/budget';
-import { summarizeTasks } from '../src/lib/tasks';
-import { applyResearchDraft } from '../src/lib/drafts';
-import { summarizeSources } from '../src/lib/sources';
-import { answerResearchQuestion, applyDraftToDatabase } from './research';
-import { checkSource } from './sourceCheck';
-import type { TripDatabase } from './db';
+import { calculateBudgetSummary } from '../src/lib/budget.js';
+import { summarizeTasks } from '../src/lib/tasks.js';
+import { applyResearchDraft } from '../src/lib/drafts.js';
+import { summarizeSources } from '../src/lib/sources.js';
+import { answerResearchQuestion, applyDraftToDatabase } from './research.js';
+import { checkSource } from './sourceCheck.js';
+import type { TripDatabase } from './tripDatabase.js';
 
 interface CreateAppOptions {
   db: TripDatabase;

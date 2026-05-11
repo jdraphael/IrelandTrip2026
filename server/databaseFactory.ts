@@ -1,5 +1,6 @@
-import { createDatabase, type TripDatabase } from './db';
-import { createPostgresDatabase } from './postgresDb';
+import { createDatabase } from './db.js';
+import { createPostgresDatabase } from './postgresDb.js';
+import type { TripDatabase } from './tripDatabase.js';
 
 interface RuntimeDatabaseOptions {
   isVercel?: boolean;
