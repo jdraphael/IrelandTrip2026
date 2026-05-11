@@ -41,6 +41,18 @@ const app = createApp({
   authRequired: true
 });
 
+function rewriteApiPath(request: VercelRequest) {
+  const path = request.query.path;
+  const rawPath = Array.isArray(path) ? path.join('/') : path;
+  if (!rawPath) return;
+
+  const url = new URL(request.url || '/api', 'https://irelandtrip.local');
+  url.pathname = `/api/${rawPath}`;
+  url.searchParams.delete('path');
+  request.url = `${url.pathname}${url.search}`;
+}
+
 export default function handler(request: VercelRequest, response: VercelResponse) {
+  rewriteApiPath(request);
   return app(request, response);
 }
