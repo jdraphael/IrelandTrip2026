@@ -249,14 +249,14 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
   );
 }
 
-function ItineraryView({ days, sources, onSave, onDraft }: { days: DayPlan[]; sources: SourceLink[]; onSave: (updates: Partial<DayPlan>[]) => Promise<void>; onDraft: (dayId: string) => Promise<void> }) {
+function ItineraryView({ days, sources, onSave }: { days: DayPlan[]; sources: SourceLink[]; onSave: (updates: Partial<DayPlan>[]) => Promise<void> }) {
   const [editing, setEditing] = useState<Record<string, string>>({});
 
   return (
     <section className="stack">
       <div className="section-heading">
         <h2>Editable Itinerary</h2>
-        <p>Save notes directly, or generate a draft adjustment that must be reviewed before it changes the plan.</p>
+        <p>Save notes directly here. Ask the Research Agent to prepare sourced itinerary changes for review.</p>
       </div>
       {days.map((day) => (
         <article className="day-card" key={day.id}>
@@ -280,13 +280,55 @@ function ItineraryView({ days, sources, onSave, onDraft }: { days: DayPlan[]; so
             />
             <div className="row-actions">
               <button className="button secondary" onClick={() => onSave([{ id: day.id, notes: editing[day.id] ?? day.notes }])}><Save size={15} /> Save Notes</button>
-              <button className="button ghost" onClick={() => onDraft(day.id)}><Bot size={15} /> Generate Draft</button>
             </div>
             <SourceChips ids={day.sourceIds || day.lodging?.sourceIds || day.stops.flatMap((stop) => stop.sourceIds || [])} sources={sources} />
           </div>
         </article>
       ))}
     </section>
+  );
+}
+
+function draftTarget(draft: ResearchDraft) {
+  const payload = draft.payload as Record<string, unknown>;
+  const item = payload.item && typeof payload.item === 'object' ? payload.item as Record<string, unknown> : undefined;
+  const task = payload.task && typeof payload.task === 'object' ? payload.task as Record<string, unknown> : undefined;
+  if (draft.kind === 'itinerary') return typeof payload.dayId === 'string' ? `Itinerary · ${payload.dayId}` : 'Itinerary';
+  if (draft.kind === 'budget') return typeof item?.label === 'string' ? `Budget · ${item.label}` : 'Budget';
+  if (draft.kind === 'task') return typeof task?.title === 'string' ? `Checklist · ${task.title}` : 'Checklist';
+  return 'Draft';
+}
+
+function DraftReviewCard({ draft, sources, onApply }: { draft: ResearchDraft; sources: SourceLink[]; onApply: (draft: ResearchDraft) => Promise<void> }) {
+  const [applying, setApplying] = useState(false);
+  const apply = async () => {
+    setApplying(true);
+    try {
+      await onApply(draft);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  return (
+    <div className="draft-card">
+      <div className="draft-card-head">
+        <div>
+          <span className="kicker">{draft.kind} draft</span>
+          <h4>{draft.title}</h4>
+        </div>
+        <StatusPill tone={draft.status === 'applied' ? 'good' : 'warn'}>{draft.status}</StatusPill>
+      </div>
+      <p className="muted">{draft.summary || draftTarget(draft)}</p>
+      <SourceChips ids={draft.sourceIds} sources={sources} />
+      {draft.status === 'draft' ? (
+        <button className="button secondary" onClick={apply} disabled={applying}>
+          {applying ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />} Apply Draft
+        </button>
+      ) : (
+        <p className="applied-note"><CheckCircle2 size={15} /> Applied to the saved planner.</p>
+      )}
+    </div>
   );
 }
 
@@ -330,7 +372,7 @@ function ResearchView({ history, onAsk, onApplyDraft }: { history: ResearchAnswe
               ))}
             </div>
             {answer.drafts.map((draft) => (
-              <button className="button secondary" key={draft.id} onClick={() => onApplyDraft(draft)}>Apply Draft: {draft.title}</button>
+              <DraftReviewCard draft={draft} sources={answer.sources} onApply={onApplyDraft} key={draft.id} />
             ))}
           </article>
         ))}
@@ -486,11 +528,6 @@ export default function App() {
     setState((current) => ({ ...current, itinerary }));
   };
 
-  const generateDraft = async (dayId: string) => {
-    await api.generateItineraryDraft(dayId);
-    setError('Draft created. Research draft review is saved on the backend; generated drafts can be expanded in a future review queue.');
-  };
-
   const saveBudget = async (items: Partial<BudgetItem>[]) => {
     const budget = await api.saveBudget(items);
     setState((current) => ({ ...current, budget }));
@@ -508,8 +545,13 @@ export default function App() {
   };
 
   const applyDraft = async (draft: ResearchDraft) => {
-    await api.applyDraft(draft.id);
-    await refresh();
+    try {
+      await api.applyDraft(draft.id);
+      await refresh();
+      setError(`${draft.title} applied.`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to apply draft.');
+    }
   };
 
   const checkSource = async (sourceUrl: string, sourceTitle?: string) => {
@@ -583,7 +625,7 @@ export default function App() {
         </header>
         {error && <button className="notice" onClick={() => setError('')}>{error}</button>}
         {tab === 'dashboard' && <Dashboard state={state} setTab={setTab} />}
-        {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} onSave={saveItinerary} onDraft={generateDraft} />}
+        {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} onSave={saveItinerary} />}
         {tab === 'research' && <ResearchView history={state.research} onAsk={askResearch} onApplyDraft={applyDraft} />}
         {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
         {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}

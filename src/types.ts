@@ -110,13 +110,29 @@ export interface SourceSummary {
   warnings: string[];
 }
 
+export interface ItineraryDraftPayload {
+  dayId: string;
+  patch: Partial<DayPlan>;
+}
+
+export interface BudgetDraftPayload {
+  item: BudgetItem;
+}
+
+export interface TaskDraftPayload {
+  task: BookingTask;
+}
+
+export type ResearchDraftPayload = ItineraryDraftPayload | BudgetDraftPayload | TaskDraftPayload | Record<string, unknown>;
+
 export interface ResearchDraft {
   id: string;
   kind: DraftKind;
   title: string;
+  summary?: string;
   createdAt: string;
   status: 'draft' | 'applied' | 'dismissed';
-  payload: unknown;
+  payload: ResearchDraftPayload;
   sourceIds?: string[];
 }
 

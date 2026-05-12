@@ -40,7 +40,6 @@ export const api = {
   trip: () => request<Trip>('/api/trip'),
   itinerary: () => request<DayPlan[]>('/api/itinerary'),
   saveItinerary: (days: Partial<DayPlan>[]) => request<DayPlan[]>('/api/itinerary', { method: 'PATCH', body: JSON.stringify(days) }),
-  generateItineraryDraft: (dayId: string) => request<ResearchDraft>('/api/itinerary/generate', { method: 'POST', body: JSON.stringify({ dayId }) }),
   budget: () => request<BudgetResponse>('/api/budget'),
   saveBudget: (items: Partial<BudgetItem>[]) => request<BudgetResponse>('/api/budget', { method: 'PATCH', body: JSON.stringify(items) }),
   tasks: () => request<TasksResponse>('/api/tasks'),

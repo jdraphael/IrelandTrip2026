@@ -4,9 +4,9 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { calculateBudgetSummary } from '../src/lib/budget.js';
 import { summarizeTasks } from '../src/lib/tasks.js';
-import { applyResearchDraft } from '../src/lib/drafts.js';
+import { applyBudgetDraft, applyResearchDraft, applyTaskDraft } from '../src/lib/drafts.js';
 import { summarizeSources } from '../src/lib/sources.js';
-import { answerResearchQuestion, applyDraftToDatabase } from './research.js';
+import { answerResearchQuestion, findDraftInDatabase, markDraftAppliedInDatabase } from './research.js';
 import { checkSource } from './sourceCheck.js';
 import type { TripDatabase } from './tripDatabase.js';
 
@@ -136,25 +136,6 @@ export function createApp({
     response.json(itinerary);
   }));
 
-  app.post('/api/itinerary/generate', asyncRoute(async (request, response) => {
-    const dayId = typeof request.body?.dayId === 'string' ? request.body.dayId : 'day-3';
-    const draft = {
-      id: `draft-${Date.now()}`,
-      kind: 'itinerary' as const,
-      title: 'Generated itinerary adjustment',
-      createdAt: new Date().toISOString(),
-      status: 'draft' as const,
-      payload: {
-        dayId,
-        patch: {
-          notes: 'Draft generated from the planning assistant. Review sources before applying.'
-        }
-      }
-    };
-    await db.saveDrafts([draft, ...(await db.getDrafts())]);
-    response.json(draft);
-  }));
-
   app.get('/api/budget', asyncRoute(async (_request, response) => {
     const items = await db.getBudget();
     response.json({ items, summary: calculateBudgetSummary(items, (await db.getTrip()).budgetTarget) });
@@ -221,15 +202,29 @@ export function createApp({
 
   app.post('/api/research/drafts/:id/apply', asyncRoute(async (request, response) => {
     const draftId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
-    const applied = await applyDraftToDatabase(db, draftId);
-    if (!applied) {
+    const draft = await findDraftInDatabase(db, draftId);
+    if (!draft) {
       response.status(404).json({ error: 'Draft not found' });
       return;
     }
 
-    if (applied.kind === 'itinerary') {
-      await db.saveItinerary(applyResearchDraft(await db.getItinerary(), applied));
+    if (draft.status !== 'draft') {
+      response.json(draft);
+      return;
     }
+
+    if (draft.kind === 'itinerary') {
+      await db.saveItinerary(applyResearchDraft(await db.getItinerary(), draft));
+    } else if (draft.kind === 'budget') {
+      await db.saveBudget(applyBudgetDraft(await db.getBudget(), draft));
+    } else if (draft.kind === 'task') {
+      await db.saveTasks(applyTaskDraft(await db.getTasks(), draft));
+    } else {
+      response.status(400).json({ error: 'Unsupported draft type' });
+      return;
+    }
+
+    const applied = await markDraftAppliedInDatabase(db, draftId);
     response.json(applied);
   }));
 
