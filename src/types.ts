@@ -110,10 +110,20 @@ export interface SourceSummary {
   warnings: string[];
 }
 
-export interface ItineraryDraftPayload {
+export interface ItineraryPatchDraftPayload {
+  mode?: 'patch';
   dayId: string;
   patch: Partial<DayPlan>;
 }
+
+export interface ItineraryReplaceDraftPayload {
+  mode: 'replace';
+  days: DayPlan[];
+  removedDayIds?: string[];
+  combinedDayIds?: string[];
+}
+
+export type ItineraryDraftPayload = ItineraryPatchDraftPayload | ItineraryReplaceDraftPayload;
 
 export interface BudgetDraftPayload {
   item: BudgetItem;

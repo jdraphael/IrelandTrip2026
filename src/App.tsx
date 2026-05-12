@@ -293,14 +293,21 @@ function draftTarget(draft: ResearchDraft) {
   const payload = draft.payload as Record<string, unknown>;
   const item = payload.item && typeof payload.item === 'object' ? payload.item as Record<string, unknown> : undefined;
   const task = payload.task && typeof payload.task === 'object' ? payload.task as Record<string, unknown> : undefined;
+  if (draft.kind === 'itinerary' && payload.mode === 'replace') return 'Full itinerary replacement';
   if (draft.kind === 'itinerary') return typeof payload.dayId === 'string' ? `Itinerary · ${payload.dayId}` : 'Itinerary';
   if (draft.kind === 'budget') return typeof item?.label === 'string' ? `Budget · ${item.label}` : 'Budget';
   if (draft.kind === 'task') return typeof task?.title === 'string' ? `Checklist · ${task.title}` : 'Checklist';
   return 'Draft';
 }
 
-function DraftReviewCard({ draft, sources, onApply }: { draft: ResearchDraft; sources: SourceLink[]; onApply: (draft: ResearchDraft) => Promise<void> }) {
+function replacementDayCount(draft: ResearchDraft) {
+  const payload = draft.payload as Record<string, unknown>;
+  return payload.mode === 'replace' && Array.isArray(payload.days) ? payload.days.length : undefined;
+}
+
+function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: ResearchDraft; sources: SourceLink[]; currentDayCount: number; onApply: (draft: ResearchDraft) => Promise<void> }) {
   const [applying, setApplying] = useState(false);
+  const proposedDayCount = replacementDayCount(draft);
   const apply = async () => {
     setApplying(true);
     try {
@@ -319,6 +326,13 @@ function DraftReviewCard({ draft, sources, onApply }: { draft: ResearchDraft; so
         </div>
         <StatusPill tone={draft.status === 'applied' ? 'good' : 'warn'}>{draft.status}</StatusPill>
       </div>
+      <p className="draft-target">{draftTarget(draft)}</p>
+      {proposedDayCount !== undefined && (
+        <div className="replace-warning">
+          <strong>{currentDayCount} days -&gt; {proposedDayCount} days</strong>
+          <span>This will replace all itinerary days.</span>
+        </div>
+      )}
       <p className="muted">{draft.summary || draftTarget(draft)}</p>
       <SourceChips ids={draft.sourceIds} sources={sources} />
       {draft.status === 'draft' ? (
@@ -332,7 +346,7 @@ function DraftReviewCard({ draft, sources, onApply }: { draft: ResearchDraft; so
   );
 }
 
-function ResearchView({ history, onAsk, onApplyDraft }: { history: ResearchAnswer[]; onAsk: (question: string, deep: boolean) => Promise<void>; onApplyDraft: (draft: ResearchDraft) => Promise<void> }) {
+function ResearchView({ history, currentDayCount, onAsk, onApplyDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean) => Promise<void>; onApplyDraft: (draft: ResearchDraft) => Promise<void> }) {
   const [question, setQuestion] = useState('');
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -372,7 +386,7 @@ function ResearchView({ history, onAsk, onApplyDraft }: { history: ResearchAnswe
               ))}
             </div>
             {answer.drafts.map((draft) => (
-              <DraftReviewCard draft={draft} sources={answer.sources} onApply={onApplyDraft} key={draft.id} />
+              <DraftReviewCard draft={draft} sources={answer.sources} currentDayCount={currentDayCount} onApply={onApplyDraft} key={draft.id} />
             ))}
           </article>
         ))}
@@ -626,7 +640,7 @@ export default function App() {
         {error && <button className="notice" onClick={() => setError('')}>{error}</button>}
         {tab === 'dashboard' && <Dashboard state={state} setTab={setTab} />}
         {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} onSave={saveItinerary} />}
-        {tab === 'research' && <ResearchView history={state.research} onAsk={askResearch} onApplyDraft={applyDraft} />}
+        {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
         {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
         {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
         {tab === 'tasks' && <TasksView tasks={state.tasks} onSave={saveTasks} />}

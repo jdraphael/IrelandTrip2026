@@ -477,6 +477,26 @@ textarea {
   color: #1f3429;
 }
 
+.draft-target {
+  margin: 0;
+  color: #2a4938;
+  font-weight: 800;
+}
+
+.replace-warning {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #f2d38b;
+  border-radius: 8px;
+  background: #fff8e5;
+  color: #704a00;
+}
+
+.replace-warning span {
+  font-size: 0.9rem;
+}
+
 .applied-note {
   display: inline-flex;
   align-items: center;

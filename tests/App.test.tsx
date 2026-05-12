@@ -165,4 +165,49 @@ describe('Ireland trip app', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/research/drafts/draft-1/apply', expect.objectContaining({ method: 'POST' }));
   });
+
+  it('warns when a draft will replace the full itinerary', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel to Dublin', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'lex', name: 'LEX', kind: 'airport', latitude: 38, longitude: -84 }], notes: 'Travel' },
+        { id: 'day-2', day: 2, title: 'Arrive Dublin', dateLabel: 'June 2027', base: 'Dublin', stops: [{ id: 'dub', name: 'Dublin Airport', kind: 'airport', latitude: 53, longitude: -6 }], notes: 'Arrive' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([
+        {
+          id: 'answer-12',
+          question: 'Change my itinerary to 12 days.',
+          answer: 'I prepared a replacement itinerary.',
+          createdAt: '2026-05-11T00:00:00Z',
+          sources: [],
+          warnings: [],
+          drafts: [
+            {
+              id: 'draft-12',
+              kind: 'itinerary',
+              title: 'Compress trip to 12 days',
+              summary: 'Replaces the current itinerary with a 12-day version.',
+              createdAt: '2026-05-11T00:00:00Z',
+              status: 'draft',
+              payload: { mode: 'replace', days: Array.from({ length: 12 }, (_value, index) => ({ id: `day-${index + 1}`, day: index + 1, title: `Day ${index + 1}`, dateLabel: 'June 2027', base: 'Ireland', stops: [], notes: '' })) }
+            }
+          ]
+        }
+      ]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Research Agent/i }));
+
+    expect(await screen.findByText('Compress trip to 12 days')).toBeInTheDocument();
+    expect(screen.getByText(/Full itinerary replacement/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 days -> 12 days/i)).toBeInTheDocument();
+    expect(screen.getByText(/will replace all itinerary days/i)).toBeInTheDocument();
+  });
 });

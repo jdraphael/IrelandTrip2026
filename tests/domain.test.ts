@@ -67,6 +67,16 @@ describe('source classification', () => {
 });
 
 describe('research drafts', () => {
+  const day = (dayNumber: number): DayPlan => ({
+    id: `day-${dayNumber}`,
+    day: dayNumber,
+    title: dayNumber === 1 ? 'Travel to Dublin' : dayNumber === 12 ? 'Fly home' : `Day ${dayNumber}`,
+    base: dayNumber === 1 ? 'In flight' : dayNumber === 12 ? 'Travel home' : 'Ireland',
+    dateLabel: 'June 2027',
+    stops: [{ id: `stop-${dayNumber}`, name: `Stop ${dayNumber}`, kind: dayNumber === 1 || dayNumber === 12 ? 'airport' : 'activity', latitude: 53, longitude: -6 }],
+    notes: `Notes ${dayNumber}`
+  });
+
   it('applies an approved itinerary draft without mutating the original itinerary', () => {
     const original: DayPlan[] = [
       { id: 'day-1', day: 1, title: 'Arrive in Dublin', base: 'Dublin', dateLabel: 'June 2027', stops: [], notes: 'Rest day' }
@@ -207,5 +217,48 @@ describe('research drafts', () => {
 
     expect(() => applyResearchDraft(itinerary, missingDayDraft)).toThrow('Draft target day was not found');
     expect(() => applyBudgetDraft([], badBudgetDraft)).toThrow('Invalid budget draft payload');
+  });
+
+  it('replaces a 16-day itinerary with a valid 12-day replacement draft', () => {
+    const original = Array.from({ length: 16 }, (_value, index) => day(index + 1));
+    const draft: ResearchDraft = {
+      id: 'draft-replace-12',
+      kind: 'itinerary',
+      title: 'Compress trip to 12 days',
+      summary: 'Replaces the current itinerary with a shorter 12-day version.',
+      createdAt: '2026-05-11T00:00:00Z',
+      status: 'draft',
+      payload: {
+        mode: 'replace',
+        days: Array.from({ length: 12 }, (_value, index) => day(index + 1)),
+        removedDayIds: ['day-4', 'day-8', 'day-13', 'day-14']
+      }
+    };
+
+    const updated = applyResearchDraft(original, draft);
+
+    expect(updated).toHaveLength(12);
+    expect(updated.map((item) => item.day)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(updated[0].title).toBe('Travel to Dublin');
+    expect(updated[11].title).toBe('Fly home');
+    expect(original).toHaveLength(16);
+  });
+
+  it('rejects invalid replacement drafts without partial changes', () => {
+    const original = Array.from({ length: 16 }, (_value, index) => day(index + 1));
+    const draft: ResearchDraft = {
+      id: 'draft-bad-replace',
+      kind: 'itinerary',
+      title: 'Bad replacement',
+      createdAt: '2026-05-11T00:00:00Z',
+      status: 'draft',
+      payload: {
+        mode: 'replace',
+        days: [day(1), { ...day(3), id: 'day-3' }]
+      }
+    };
+
+    expect(() => applyResearchDraft(original, draft)).toThrow('Replacement itinerary days must be sequential');
+    expect(original).toHaveLength(16);
   });
 });

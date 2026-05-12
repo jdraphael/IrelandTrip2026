@@ -1,4 +1,4 @@
-import type { BookingTask, BudgetItem, DayPlan, ItineraryDraftPayload, ResearchDraft, Stop } from '../types';
+import type { BookingTask, BudgetItem, DayPlan, ItineraryDraftPayload, ItineraryPatchDraftPayload, ItineraryReplaceDraftPayload, ResearchDraft, Stop } from '../types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object';
@@ -23,11 +23,58 @@ function isValidStop(value: unknown): value is Stop {
   );
 }
 
-export function isItineraryDraftPayload(payload: unknown): payload is ItineraryDraftPayload {
+function isDayPlan(value: unknown): value is DayPlan {
+  if (!isRecord(value)) return false;
+  const stops = Array.isArray(value.stops) ? value.stops : [];
+  return (
+    isNonEmptyString(value.id) &&
+    isNumber(value.day) &&
+    isNonEmptyString(value.title) &&
+    isNonEmptyString(value.dateLabel) &&
+    isNonEmptyString(value.base) &&
+    typeof value.notes === 'string' &&
+    Array.isArray(value.stops) &&
+    stops.every(isValidStop)
+  );
+}
+
+function isTravelDay(day: DayPlan) {
+  return /travel|fly|flight|airport/i.test(`${day.title} ${day.base} ${day.route || ''}`);
+}
+
+export function isItineraryPatchDraftPayload(payload: unknown): payload is ItineraryPatchDraftPayload {
   if (!payload || typeof payload !== 'object') return false;
-  const candidate = payload as Partial<ItineraryDraftPayload>;
+  const candidate = payload as Partial<ItineraryPatchDraftPayload>;
   const stops = Array.isArray(candidate.patch?.stops) ? candidate.patch.stops : [];
-  return typeof candidate.dayId === 'string' && !!candidate.patch && typeof candidate.patch === 'object' && stops.every(isValidStop);
+  return (candidate.mode === undefined || candidate.mode === 'patch') && typeof candidate.dayId === 'string' && !!candidate.patch && typeof candidate.patch === 'object' && stops.every(isValidStop);
+}
+
+export function assertValidReplacementDays(days: DayPlan[]) {
+  if (!Array.isArray(days) || days.length === 0 || !days.every(isDayPlan)) {
+    throw new Error('Invalid replacement itinerary days');
+  }
+
+  const ids = new Set<string>();
+  for (const [index, day] of days.entries()) {
+    if (ids.has(day.id)) throw new Error('Replacement itinerary days must have unique ids');
+    ids.add(day.id);
+    if (day.day !== index + 1) throw new Error('Replacement itinerary days must be sequential');
+    if (isTravelDay(day) && day.stops.length === 0) throw new Error('Travel days must include at least one stop');
+  }
+}
+
+export function isItineraryReplaceDraftPayload(payload: unknown): payload is ItineraryReplaceDraftPayload {
+  if (!isRecord(payload) || payload.mode !== 'replace' || !Array.isArray(payload.days)) return false;
+  try {
+    assertValidReplacementDays(payload.days);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function isItineraryDraftPayload(payload: unknown): payload is ItineraryDraftPayload {
+  return isItineraryPatchDraftPayload(payload) || isItineraryReplaceDraftPayload(payload);
 }
 
 function isBudgetItem(value: unknown): value is BudgetItem {
@@ -72,7 +119,15 @@ function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 export function applyResearchDraft(itinerary: DayPlan[], draft: ResearchDraft): DayPlan[] {
-  if (draft.kind !== 'itinerary' || !isItineraryDraftPayload(draft.payload)) {
+  if (draft.kind !== 'itinerary') {
+    throw new Error('Invalid itinerary draft payload');
+  }
+  if (isRecord(draft.payload) && draft.payload.mode === 'replace') {
+    if (!Array.isArray(draft.payload.days)) throw new Error('Invalid replacement itinerary days');
+    assertValidReplacementDays(draft.payload.days as DayPlan[]);
+    return (draft.payload.days as DayPlan[]).map((day) => ({ ...day, stops: [...day.stops], lodging: day.lodging ? { ...day.lodging } : undefined }));
+  }
+  if (!isItineraryPatchDraftPayload(draft.payload)) {
     throw new Error('Invalid itinerary draft payload');
   }
   const payload = draft.payload;

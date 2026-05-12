@@ -22,6 +22,16 @@ describe('trip agent API', () => {
     openAiMock.responsesCreate.mockReset();
   });
 
+  const day = (dayNumber: number) => ({
+    id: `day-${dayNumber}`,
+    day: dayNumber,
+    title: dayNumber === 1 ? 'Travel to Dublin' : dayNumber === 12 ? 'Fly home' : `Day ${dayNumber}`,
+    dateLabel: 'June 2027',
+    base: dayNumber === 1 ? 'In flight' : dayNumber === 12 ? 'Travel home' : 'Ireland',
+    stops: [{ id: `stop-${dayNumber}`, name: `Stop ${dayNumber}`, kind: dayNumber === 1 || dayNumber === 12 ? 'airport' : 'activity', latitude: 53, longitude: -6 }],
+    notes: `Notes ${dayNumber}`
+  });
+
   it('returns seeded trip, itinerary, budget, and task data', async () => {
     const db = createTestDatabase();
     const app = createApp({ db });
@@ -161,6 +171,78 @@ describe('trip agent API', () => {
     expect(response.body.answer).toBe('This is not JSON.');
     expect(response.body.drafts).toEqual([]);
     expect(response.body.warnings.some((warning: string) => warning.includes('structured draft'))).toBe(true);
+  });
+
+  it('creates and applies a full replacement itinerary draft from structured output', async () => {
+    openAiMock.responsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        answer: 'I prepared a 12-day replacement itinerary for review.',
+        warnings: [],
+        drafts: [
+          {
+            kind: 'itinerary',
+            title: 'Compress trip to 12 days',
+            summary: 'Replaces the current 16-day itinerary with 12 days.',
+            payload: {
+              mode: 'replace',
+              days: Array.from({ length: 12 }, (_value, index) => day(index + 1)),
+              removedDayIds: ['day-4', 'day-8', 'day-13', 'day-14']
+            }
+          }
+        ]
+      }),
+      output: []
+    });
+    const db = createTestDatabase();
+    const app = createApp({ db, openAiApiKey: 'test-key' });
+
+    const research = await request(app)
+      .post('/api/research')
+      .send({ question: 'Change my itinerary from 16 days down to 12 days. Day 1 is travel and the last day is travel.' })
+      .expect(200);
+
+    expect(openAiMock.responsesCreate).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.objectContaining({
+        format: expect.objectContaining({ type: 'json_schema' })
+      })
+    }));
+    expect(research.body.drafts[0]).toMatchObject({ kind: 'itinerary', title: 'Compress trip to 12 days', status: 'draft' });
+    expect(research.body.drafts[0].payload.days).toHaveLength(12);
+
+    await request(app).post(`/api/research/drafts/${research.body.drafts[0].id}/apply`).expect(200);
+    const itinerary = await request(app).get('/api/itinerary').expect(200);
+
+    expect(itinerary.body).toHaveLength(12);
+    expect(itinerary.body[0].title).toBe('Travel to Dublin');
+    expect(itinerary.body[11].title).toBe('Fly home');
+  });
+
+  it('extracts a JSON draft object when model output includes leading prose', async () => {
+    openAiMock.responsesCreate.mockResolvedValue({
+      output_text: `Here is the draft:\n${JSON.stringify({
+        answer: 'I prepared a 12-day replacement itinerary.',
+        warnings: [],
+        drafts: [
+          {
+            kind: 'itinerary',
+            title: 'Compress trip to 12 days',
+            summary: 'Replaces the itinerary.',
+            payload: { mode: 'replace', days: Array.from({ length: 12 }, (_value, index) => day(index + 1)) }
+          }
+        ]
+      })}`,
+      output: []
+    });
+    const db = createTestDatabase();
+    const app = createApp({ db, openAiApiKey: 'test-key' });
+
+    const response = await request(app)
+      .post('/api/research')
+      .send({ question: 'Please shorten this to 12 days.' })
+      .expect(200);
+
+    expect(response.body.drafts).toHaveLength(1);
+    expect(response.body.warnings.some((warning: string) => warning.includes('structured draft'))).toBe(false);
   });
 
   it('requires family passcode auth when auth is enabled', async () => {

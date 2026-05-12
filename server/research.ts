@@ -30,6 +30,37 @@ interface ModelResearchOutput {
   drafts?: ModelDraft[];
 }
 
+const researchResponseFormat = {
+  type: 'json_schema' as const,
+  name: 'trip_research_answer',
+  description: 'A sourced travel planning answer with optional reviewable saved-data drafts.',
+  strict: false,
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['answer', 'warnings', 'drafts'],
+    properties: {
+      answer: { type: 'string' },
+      warnings: { type: 'array', items: { type: 'string' } },
+      drafts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['kind', 'title', 'summary', 'payload'],
+          properties: {
+            kind: { type: 'string', enum: ['itinerary', 'budget', 'task'] },
+            title: { type: 'string' },
+            summary: { type: 'string' },
+            sourceUrls: { type: 'array', items: { type: 'string' } },
+            payload: { type: 'object', additionalProperties: true }
+          }
+        }
+      }
+    }
+  }
+};
+
 function extractAnnotations(response: unknown): AnnotationLike[] {
   const annotations: AnnotationLike[] = [];
   const visit = (value: unknown) => {
@@ -75,17 +106,57 @@ function stripJsonFence(text: string) {
   return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 }
 
-function parseModelOutput(outputText: string): { output: ModelResearchOutput; warnings: string[] } {
-  try {
-    const parsed = JSON.parse(stripJsonFence(outputText)) as ModelResearchOutput;
-    if (!parsed || typeof parsed !== 'object') throw new Error('Model output was not an object.');
-    return { output: parsed, warnings: [] };
-  } catch {
-    return {
-      output: { answer: outputText, drafts: [] },
-      warnings: ['The research agent could not parse structured draft JSON, so no saved-data draft was created.']
-    };
+function extractFirstJsonObject(text: string) {
+  const start = text.indexOf('{');
+  if (start === -1) return undefined;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (depth === 0) return text.slice(start, index + 1);
   }
+  return undefined;
+}
+
+function parseModelOutput(outputText: string): { output: ModelResearchOutput; warnings: string[] } {
+  const parse = (text: string) => {
+    const parsed = JSON.parse(text) as ModelResearchOutput;
+    if (!parsed || typeof parsed !== 'object') throw new Error('Model output was not an object.');
+    return parsed;
+  };
+  try {
+    return { output: parse(stripJsonFence(outputText)), warnings: [] };
+  } catch {
+    const extracted = extractFirstJsonObject(outputText);
+    if (extracted) {
+      try {
+        return { output: parse(extracted), warnings: [] };
+      } catch {
+        // Fall through to warning below.
+      }
+    }
+  }
+  return {
+    output: { answer: outputText, drafts: [] },
+    warnings: ['The research agent could not parse structured draft JSON, so no saved-data draft was created.']
+  };
 }
 
 function sourceIdsForUrls(sourceUrls: string[] | undefined, sources: SourceLink[]) {
@@ -102,6 +173,15 @@ function payloadWithSourceIds(kind: string, payload: unknown, sourceIds: string[
     if (Array.isArray(clone.patch.stops)) {
       clone.patch.stops = clone.patch.stops.map((stop: Record<string, unknown>) => ({ sourceIds, ...stop }));
     }
+  }
+  if (kind === 'itinerary' && clone.mode === 'replace' && Array.isArray(clone.days)) {
+    clone.days = clone.days.map((day: Record<string, unknown>) => ({
+      ...day,
+      sourceIds: Array.isArray(day.sourceIds) ? day.sourceIds : sourceIds,
+      stops: Array.isArray(day.stops)
+        ? day.stops.map((stop: Record<string, unknown>) => ({ sourceIds, ...stop }))
+        : []
+    }));
   }
   if (kind === 'budget' && clone.item && typeof clone.item === 'object') {
     clone.item.sourceIds ||= sourceIds;
@@ -184,8 +264,10 @@ export async function answerResearchQuestion({ question, deep = false, apiKey, d
     'Never claim a price, policy, opening time, or ticket requirement without a source. If current sources are unclear, say what must be verified.',
     'Return only valid JSON. Do not wrap it in Markdown. The JSON shape is {"answer":"plain language answer","warnings":["optional warning"],"drafts":[...]}.',
     'Only include drafts when the user explicitly asks to add, update, move, budget, or create a task. Otherwise return "drafts": [].',
-    'Never remove saved records in drafts. V1 drafts may only add or update itinerary, budget, and task records.',
-    'Itinerary draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"dayId":"day-5","patch":{"notes":"...","stops":[{"id":"kebab-id","name":"...","kind":"activity","latitude":52.1,"longitude":-7.1}]}}}.',
+    'Never remove saved budget or task records in drafts. Itinerary replacement drafts may replace the full day list only when the user explicitly asks to shorten, lengthen, renumber, or remove itinerary days.',
+    'For small itinerary edits, use itinerary patch draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"mode":"patch","dayId":"day-5","patch":{"notes":"...","stops":[{"id":"kebab-id","name":"...","kind":"activity","latitude":52.1,"longitude":-7.1}]}}}.',
+    'For shortening, lengthening, renumbering, or removing itinerary days, use itinerary replacement draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"mode":"replace","days":[complete DayPlan objects with ids day-1..day-N and sequential day numbers],"removedDayIds":["day-4"],"combinedDayIds":["day-3","day-4"]}}.',
+    'A replacement itinerary must include complete DayPlan objects: id, day, title, dateLabel, base, optional route/driveTime/distanceMiles/lodging, stops array, notes, optional sourceIds. Travel days must include an airport stop.',
     'Budget draft shape: {"kind":"budget","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"item":{"id":"kebab-id","category":"Transportation","label":"...","planned":100,"actual":0,"status":"researching","notes":"..."}}}.',
     'Task draft shape: {"kind":"task","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"task":{"id":"kebab-id","title":"...","status":"open","dueDate":"YYYY-MM-DD","category":"Documents","notes":"..."}}}.',
     'Use existing ids when updating existing days, budget items, tasks, or stops. Generate stable kebab-case ids for new budget items, tasks, or stops.',
@@ -198,6 +280,7 @@ export async function answerResearchQuestion({ question, deep = false, apiKey, d
   const response = await client.responses.create({
     model: deep ? process.env.OPENAI_DEEP_MODEL || 'gpt-5.5' : process.env.OPENAI_MODEL || 'gpt-5.4-mini',
     input: prompt,
+    text: { format: researchResponseFormat },
     tools: [{ type: 'web_search' }],
     tool_choice: 'auto'
   });
