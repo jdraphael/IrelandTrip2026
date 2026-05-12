@@ -210,4 +210,59 @@ describe('Ireland trip app', () => {
     expect(screen.getByText(/2 days -> 12 days/i)).toBeInTheDocument();
     expect(screen.getByText(/will replace all itinerary days/i)).toBeInTheDocument();
   });
+
+  it('opens an itinerary agent bubble and sends day context with the prompt', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel to Dublin', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'lex', name: 'LEX', kind: 'airport', latitude: 38, longitude: -84 }], notes: 'Travel' },
+        { id: 'day-3', day: 3, title: 'Dublin highlights', dateLabel: 'June 2027', base: 'Dublin', stops: [{ id: 'zoo', name: 'Dublin Zoo', kind: 'activity', latitude: 53, longitude: -6 }], notes: 'Zoo and city day' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') {
+        return Promise.resolve(Response.json({
+          id: 'answer-bubble',
+          question: 'Add a comment that this is a lighter day.',
+          answer: 'I prepared a Day 3 note draft.',
+          createdAt: '2026-05-11T00:00:00Z',
+          sources: [],
+          warnings: [],
+          drafts: [
+            {
+              id: 'draft-bubble',
+              kind: 'itinerary',
+              title: 'Add Day 3 pacing comment',
+              summary: 'Adds a lighter-day comment to Day 3 notes.',
+              createdAt: '2026-05-11T00:00:00Z',
+              status: 'draft',
+              payload: { mode: 'patch', dayId: 'day-3', patch: { notes: 'Zoo and city day. Keep this as a lighter pacing day.' } }
+            }
+          ]
+        }));
+      }
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Open itinerary agent/i }));
+    await userEvent.selectOptions(screen.getByLabelText(/Agent focus/i), 'day-3');
+    await userEvent.type(screen.getByLabelText(/Itinerary agent prompt/i), 'Add a comment that this is a lighter day.');
+    await userEvent.click(screen.getByRole('button', { name: /Ask Itinerary Agent/i }));
+
+    expect(await screen.findByText('I prepared a Day 3 note draft.')).toBeInTheDocument();
+    expect(screen.getByText('Add Day 3 pacing comment')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/research', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"context"')
+    }));
+    const researchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
+    expect(JSON.parse((researchCall?.[1] as RequestInit).body as string).context).toContain('Selected itinerary day: Day 3');
+  });
 });

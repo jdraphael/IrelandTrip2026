@@ -47,6 +47,6 @@ export const api = {
   sources: () => request<SourcesResponse>('/api/sources'),
   checkSource: (url: string, title?: string) => request<SourceLink>('/api/sources/check', { method: 'POST', body: JSON.stringify({ url, title }) }),
   researchHistory: () => request<ResearchAnswer[]>('/api/research'),
-  askResearch: (question: string, deep = false) => request<ResearchAnswer>('/api/research', { method: 'POST', body: JSON.stringify({ question, deep }) }),
+  askResearch: (question: string, deep = false, context?: string) => request<ResearchAnswer>('/api/research', { method: 'POST', body: JSON.stringify({ question, deep, context }) }),
   applyDraft: (id: string) => request<ResearchDraft>(`/api/research/drafts/${id}/apply`, { method: 'POST' })
 };

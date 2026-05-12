@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Bot, CalendarDays, CheckCircle2, ExternalLink, FileCheck2, Landmark, Loader2, MapPinned, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck } from 'lucide-react';
+import { Bot, CalendarDays, CheckCircle2, ExternalLink, FileCheck2, Landmark, Loader2, MapPinned, MessageCircle, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
@@ -249,7 +249,21 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
   );
 }
 
-function ItineraryView({ days, sources, onSave }: { days: DayPlan[]; sources: SourceLink[]; onSave: (updates: Partial<DayPlan>[]) => Promise<void> }) {
+function ItineraryView({
+  days,
+  sources,
+  currentDayCount,
+  onSave,
+  onAsk,
+  onApplyDraft
+}: {
+  days: DayPlan[];
+  sources: SourceLink[];
+  currentDayCount: number;
+  onSave: (updates: Partial<DayPlan>[]) => Promise<void>;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
   const [editing, setEditing] = useState<Record<string, string>>({});
 
   return (
@@ -285,6 +299,13 @@ function ItineraryView({ days, sources, onSave }: { days: DayPlan[]; sources: So
           </div>
         </article>
       ))}
+      <ItineraryAgentBubble
+        days={days}
+        sources={sources}
+        currentDayCount={currentDayCount}
+        onAsk={onAsk}
+        onApplyDraft={onApplyDraft}
+      />
     </section>
   );
 }
@@ -305,7 +326,7 @@ function replacementDayCount(draft: ResearchDraft) {
   return payload.mode === 'replace' && Array.isArray(payload.days) ? payload.days.length : undefined;
 }
 
-function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: ResearchDraft; sources: SourceLink[]; currentDayCount: number; onApply: (draft: ResearchDraft) => Promise<void> }) {
+function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: ResearchDraft; sources: SourceLink[]; currentDayCount: number; onApply: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
   const [applying, setApplying] = useState(false);
   const proposedDayCount = replacementDayCount(draft);
   const apply = async () => {
@@ -346,7 +367,137 @@ function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: 
   );
 }
 
-function ResearchView({ history, currentDayCount, onAsk, onApplyDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean) => Promise<void>; onApplyDraft: (draft: ResearchDraft) => Promise<void> }) {
+function itineraryAgentContext(days: DayPlan[], selectedDayId: string) {
+  const selectedDay = days.find((day) => day.id === selectedDayId);
+  const compactDays = days.map((day) => ({
+    id: day.id,
+    day: day.day,
+    title: day.title,
+    base: day.base,
+    route: day.route,
+    notes: day.notes,
+    stops: day.stops.map((stop) => ({ id: stop.id, name: stop.name, kind: stop.kind }))
+  }));
+
+  return [
+    'Request surface: Itinerary module persistent agent bubble.',
+    selectedDay
+      ? `Selected itinerary day: Day ${selectedDay.day} (${selectedDay.id}) - ${selectedDay.title}. If the user says "this day", target ${selectedDay.id}.`
+      : 'Selected itinerary day: Whole itinerary. If the user mentions a day number, target that day.',
+    'The user may ask questions or ask for itinerary edits. Saved-data edits must be returned as reviewable itinerary drafts, never direct mutations.',
+    'If the user asks to add a comment, reminder, pacing note, or family note to a day, create an itinerary patch draft that updates that day notes while preserving useful existing notes.',
+    `Visible itinerary summary: ${JSON.stringify(compactDays)}`
+  ].join('\n');
+}
+
+function ItineraryAgentBubble({
+  days,
+  sources,
+  currentDayCount,
+  onAsk,
+  onApplyDraft
+}: {
+  days: DayPlan[];
+  sources: SourceLink[];
+  currentDayCount: number;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedDayId, setSelectedDayId] = useState('all');
+  const [prompt, setPrompt] = useState('');
+  const [deep, setDeep] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [answers, setAnswers] = useState<ResearchAnswer[]>([]);
+
+  useEffect(() => {
+    if (selectedDayId !== 'all' && !days.some((day) => day.id === selectedDayId)) {
+      setSelectedDayId('all');
+    }
+  }, [days, selectedDayId]);
+
+  const submit = async () => {
+    if (!prompt.trim()) return;
+    setBusy(true);
+    try {
+      const answer = await onAsk(prompt.trim(), deep, itineraryAgentContext(days, selectedDayId));
+      setAnswers((current) => [answer, ...current].slice(0, 4));
+      setPrompt('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyBubbleDraft = async (draft: ResearchDraft) => {
+    const applied = await onApplyDraft(draft);
+    setAnswers((current) => current.map((answer) => ({
+      ...answer,
+      drafts: answer.drafts.map((item) => (item.id === draft.id ? { ...item, status: applied?.status || 'applied' } : item))
+    })));
+    return applied;
+  };
+
+  return (
+    <div className={`itinerary-agent ${open ? 'open' : ''}`}>
+      {!open && (
+        <button className="agent-fab" onClick={() => setOpen(true)} aria-label="Open itinerary agent">
+          <MessageCircle size={22} />
+          <span>Agent</span>
+        </button>
+      )}
+      {open && (
+        <section className="agent-dock" aria-label="Itinerary agent">
+          <div className="agent-dock-head">
+            <div>
+              <span className="kicker">Itinerary copilot</span>
+              <h3>Ask or draft changes</h3>
+            </div>
+            <button className="icon-button" onClick={() => setOpen(false)} aria-label="Close itinerary agent">
+              <X size={18} />
+            </button>
+          </div>
+          <label className="agent-field">
+            <span>Agent focus</span>
+            <select value={selectedDayId} onChange={(event) => setSelectedDayId(event.target.value)} aria-label="Agent focus">
+              <option value="all">Whole itinerary</option>
+              {days.map((day) => (
+                <option value={day.id} key={day.id}>Day {day.day}: {day.title}</option>
+              ))}
+            </select>
+          </label>
+          <label className="agent-field">
+            <span>Itinerary agent prompt</span>
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="Ask a question, add a comment to this day, or draft a sourced itinerary change..."
+              aria-label="Itinerary agent prompt"
+            />
+          </label>
+          <label className="checkbox compact-check"><input type="checkbox" checked={deep} onChange={(event) => setDeep(event.target.checked)} /> Deeper research</label>
+          <button className="button primary full" onClick={submit} disabled={busy || !prompt.trim()}>
+            {busy ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />} Ask Itinerary Agent
+          </button>
+          <div className="agent-thread">
+            {answers.length === 0 && <p className="muted">Try: "Add a comment to Day 8 to keep this day flexible for weather."</p>}
+            {answers.map((answer) => (
+              <article className="agent-thread-card" key={answer.id}>
+                <h4>{answer.question}</h4>
+                <AnswerText text={answer.answer} />
+                {answer.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+                {answer.drafts.map((draft) => (
+                  <DraftReviewCard draft={draft} sources={[...sources, ...answer.sources]} currentDayCount={currentDayCount} onApply={applyBubbleDraft} key={draft.id} />
+                ))}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function ResearchView({ history, currentDayCount, onAsk, onApplyDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>; onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
   const [question, setQuestion] = useState('');
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -552,19 +703,22 @@ export default function App() {
     setState((current) => ({ ...current, tasks }));
   };
 
-  const askResearch = async (question: string, deep: boolean) => {
-    const answer = await api.askResearch(question, deep);
+  const askResearch = async (question: string, deep: boolean, context?: string) => {
+    const answer = await api.askResearch(question, deep, context);
     const sources = await api.sources();
     setState((current) => ({ ...current, sources, research: [answer, ...current.research] }));
+    return answer;
   };
 
   const applyDraft = async (draft: ResearchDraft) => {
     try {
-      await api.applyDraft(draft.id);
+      const applied = await api.applyDraft(draft.id);
       await refresh();
       setError(`${draft.title} applied.`);
+      return applied;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to apply draft.');
+      return undefined;
     }
   };
 
@@ -639,7 +793,7 @@ export default function App() {
         </header>
         {error && <button className="notice" onClick={() => setError('')}>{error}</button>}
         {tab === 'dashboard' && <Dashboard state={state} setTab={setTab} />}
-        {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} onSave={saveItinerary} />}
+        {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} />}
         {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
         {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
         {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}

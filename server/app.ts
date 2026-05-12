@@ -19,7 +19,7 @@ interface CreateAppOptions {
 }
 
 const patchTripSchema = z.record(z.string(), z.unknown());
-const researchSchema = z.object({ question: z.string().min(3), deep: z.boolean().optional() });
+const researchSchema = z.object({ question: z.string().min(3), deep: z.boolean().optional(), context: z.string().max(4000).optional() });
 const sourceCheckSchema = z.object({ url: z.string().url(), title: z.string().optional() });
 const loginSchema = z.object({ passcode: z.string().min(1) });
 

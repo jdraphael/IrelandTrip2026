@@ -6,6 +6,7 @@ import { classifySource, summarizeSources } from '../src/lib/sources.js';
 interface ResearchOptions {
   question: string;
   deep?: boolean;
+  context?: string;
   apiKey?: string;
   db: TripDatabase;
 }
@@ -243,7 +244,7 @@ function missingKeyAnswer(question: string): ResearchAnswer {
   };
 }
 
-export async function answerResearchQuestion({ question, deep = false, apiKey, db }: ResearchOptions): Promise<ResearchAnswer> {
+export async function answerResearchQuestion({ question, deep = false, context, apiKey, db }: ResearchOptions): Promise<ResearchAnswer> {
   if (!apiKey) {
     const fallback = missingKeyAnswer(question);
     await db.saveResearchAnswers([fallback, ...(await db.getResearchAnswers())]);
@@ -268,12 +269,14 @@ export async function answerResearchQuestion({ question, deep = false, apiKey, d
     'For small itinerary edits, use itinerary patch draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"mode":"patch","dayId":"day-5","patch":{"notes":"...","stops":[{"id":"kebab-id","name":"...","kind":"activity","latitude":52.1,"longitude":-7.1}]}}}.',
     'For shortening, lengthening, renumbering, or removing itinerary days, use itinerary replacement draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"mode":"replace","days":[complete DayPlan objects with ids day-1..day-N and sequential day numbers],"removedDayIds":["day-4"],"combinedDayIds":["day-3","day-4"]}}.',
     'A replacement itinerary must include complete DayPlan objects: id, day, title, dateLabel, base, optional route/driveTime/distanceMiles/lodging, stops array, notes, optional sourceIds. Travel days must include an airport stop.',
+    'When the request comes from the itinerary bubble and asks to add a comment or note to a day, create an itinerary patch draft for that day. Preserve the existing notes and append or merge the new comment unless the user explicitly asks to replace the notes.',
     'Budget draft shape: {"kind":"budget","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"item":{"id":"kebab-id","category":"Transportation","label":"...","planned":100,"actual":0,"status":"researching","notes":"..."}}}.',
     'Task draft shape: {"kind":"task","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"task":{"id":"kebab-id","title":"...","status":"open","dueDate":"YYYY-MM-DD","category":"Documents","notes":"..."}}}.',
     'Use existing ids when updating existing days, budget items, tasks, or stops. Generate stable kebab-case ids for new budget items, tasks, or stops.',
     `Current itinerary JSON: ${JSON.stringify(itinerary.map((day) => ({ id: day.id, day: day.day, title: day.title, base: day.base, route: day.route, stops: day.stops.map((stop) => ({ id: stop.id, name: stop.name })) })))}.`,
     `Current budget JSON: ${JSON.stringify(budget.map((item) => ({ id: item.id, category: item.category, label: item.label, planned: item.planned, actual: item.actual, status: item.status })))}.`,
     `Current tasks JSON: ${JSON.stringify(tasks.map((task) => ({ id: task.id, title: task.title, status: task.status, dueDate: task.dueDate, category: task.category })))}.`,
+    context ? `Interface context: ${context}` : 'Interface context: General research agent.',
     `Question: ${question}`
   ].join('\n\n');
 
