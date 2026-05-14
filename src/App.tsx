@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Banknote, Bot, CalendarDays, CheckCircle2, CreditCard, ExternalLink, FileCheck2, Landmark, Loader2, MapPinned, MessageCircle, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
+import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
 import type { BookingTask, BudgetItem, DayPlan, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
@@ -839,6 +840,7 @@ export default function App() {
             <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="topbar-meta">
+            <CurrencyHeaderTile />
             <StatusPill tone="good">June 2027</StatusPill>
             <StatusPill>{state.trip?.travelers || 5} travelers</StatusPill>
             {authRequired && <button className="button ghost compact" onClick={logout}>Log out</button>}
