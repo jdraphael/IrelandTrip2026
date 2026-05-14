@@ -28,6 +28,12 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
+    try {
+      const body = JSON.parse(text) as { error?: unknown };
+      if (typeof body.error === 'string') throw new Error(body.error);
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'SyntaxError') throw error;
+    }
     throw new Error(text || `Request failed: ${response.status}`);
   }
   return response.json() as Promise<T>;

@@ -369,15 +369,24 @@ function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: 
 
 function itineraryAgentContext(days: DayPlan[], selectedDayId: string) {
   const selectedDay = days.find((day) => day.id === selectedDayId);
-  const compactDays = days.map((day) => ({
+  const dayDirectory = days.map((day) => ({
     id: day.id,
     day: day.day,
     title: day.title,
     base: day.base,
-    route: day.route,
-    notes: day.notes,
-    stops: day.stops.map((stop) => ({ id: stop.id, name: stop.name, kind: stop.kind }))
+    route: day.route
   }));
+  const selectedDayDetail = selectedDay
+    ? {
+        id: selectedDay.id,
+        day: selectedDay.day,
+        title: selectedDay.title,
+        base: selectedDay.base,
+        route: selectedDay.route,
+        notes: selectedDay.notes,
+        stops: selectedDay.stops.map((stop) => ({ id: stop.id, name: stop.name, kind: stop.kind }))
+      }
+    : undefined;
 
   return [
     'Request surface: Itinerary module persistent agent bubble.',
@@ -386,7 +395,10 @@ function itineraryAgentContext(days: DayPlan[], selectedDayId: string) {
       : 'Selected itinerary day: Whole itinerary. If the user mentions a day number, target that day.',
     'The user may ask questions or ask for itinerary edits. Saved-data edits must be returned as reviewable itinerary drafts, never direct mutations.',
     'If the user asks to add a comment, reminder, pacing note, or family note to a day, create an itinerary patch draft that updates that day notes while preserving useful existing notes.',
-    `Visible itinerary summary: ${JSON.stringify(compactDays)}`
+    selectedDayDetail
+      ? `Selected day details: ${JSON.stringify(selectedDayDetail)}`
+      : 'No single day is selected. Use explicit day numbers in the prompt to choose a day.',
+    `Visible itinerary day directory: ${JSON.stringify(dayDirectory)}`
   ].join('\n');
 }
 
@@ -409,6 +421,7 @@ function ItineraryAgentBubble({
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
   const [answers, setAnswers] = useState<ResearchAnswer[]>([]);
+  const [agentError, setAgentError] = useState('');
 
   useEffect(() => {
     if (selectedDayId !== 'all' && !days.some((day) => day.id === selectedDayId)) {
@@ -419,10 +432,13 @@ function ItineraryAgentBubble({
   const submit = async () => {
     if (!prompt.trim()) return;
     setBusy(true);
+    setAgentError('');
     try {
       const answer = await onAsk(prompt.trim(), deep, itineraryAgentContext(days, selectedDayId));
       setAnswers((current) => [answer, ...current].slice(0, 4));
       setPrompt('');
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : 'Unable to reach the itinerary agent.');
     } finally {
       setBusy(false);
     }
@@ -478,6 +494,7 @@ function ItineraryAgentBubble({
           <button className="button primary full" onClick={submit} disabled={busy || !prompt.trim()}>
             {busy ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />} Ask Itinerary Agent
           </button>
+          {agentError && <p className="warning">{agentError}</p>}
           <div className="agent-thread">
             {answers.length === 0 && <p className="muted">Try: "Add a comment to Day 8 to keep this day flexible for weather."</p>}
             {answers.map((answer) => (

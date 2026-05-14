@@ -265,4 +265,81 @@ describe('Ireland trip app', () => {
     const researchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
     expect(JSON.parse((researchCall?.[1] as RequestInit).body as string).context).toContain('Selected itinerary day: Day 3');
   });
+
+  it('keeps full-itinerary agent context within the API limit', async () => {
+    const longItinerary = Array.from({ length: 16 }, (_value, index) => ({
+      id: `day-${index + 1}`,
+      day: index + 1,
+      title: `Ireland day ${index + 1}`,
+      dateLabel: 'June 2027',
+      base: index === 0 ? 'In flight' : 'Ireland',
+      route: `Route details for day ${index + 1}`,
+      stops: [
+        { id: `stop-${index + 1}-a`, name: `Morning stop ${index + 1}`, kind: 'activity', latitude: 53, longitude: -6 },
+        { id: `stop-${index + 1}-b`, name: `Afternoon stop ${index + 1}`, kind: 'activity', latitude: 53, longitude: -6 }
+      ],
+      notes: `Detailed planning notes for day ${index + 1}. Keep the family pacing realistic, include flexible time, and preserve these notes when adding comments.`
+    }));
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json(longItinerary));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') {
+        return Promise.resolve(Response.json({
+          id: 'answer-long-context',
+          question: 'Add a comment to day 1.',
+          answer: 'I prepared a draft.',
+          createdAt: '2026-05-11T00:00:00Z',
+          sources: [],
+          warnings: [],
+          drafts: []
+        }));
+      }
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Open itinerary agent/i }));
+    await userEvent.type(screen.getByLabelText(/Itinerary agent prompt/i), 'Add a comment to day 1.');
+    await userEvent.click(screen.getByRole('button', { name: /Ask Itinerary Agent/i }));
+
+    const researchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
+    const context = JSON.parse((researchCall?.[1] as RequestInit).body as string).context as string;
+    expect(context.length).toBeLessThanOrEqual(4000);
+  });
+
+  it('shows an itinerary agent error when the research request fails', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel to Dublin', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'lex', name: 'LEX', kind: 'airport', latitude: 38, longitude: -84 }], notes: 'Travel' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') {
+        return Promise.resolve(Response.json({ error: 'Context is too large' }, { status: 400 }));
+      }
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Open itinerary agent/i }));
+    await userEvent.type(screen.getByLabelText(/Itinerary agent prompt/i), 'Add a comment to day 1.');
+    await userEvent.click(screen.getByRole('button', { name: /Ask Itinerary Agent/i }));
+
+    expect(await screen.findByText(/Context is too large/i)).toBeInTheDocument();
+  });
 });
