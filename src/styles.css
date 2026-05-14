@@ -53,12 +53,17 @@ a {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.18s ease;
+}
+
+.app-shell.nav-collapsed {
+  grid-template-columns: 84px minmax(0, 1fr);
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
   min-width: 0;
   padding: 28px 20px;
   background: linear-gradient(180deg, var(--nav), var(--nav-2));
@@ -66,25 +71,63 @@ a {
   box-shadow: 16px 0 40px rgba(15, 23, 42, 0.12);
 }
 
+.brand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 48px;
+  min-width: 0;
 }
 
 .brand-mark {
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #f8fafc, #dbeafe);
-  color: var(--emerald-dark);
-  font-weight: 800;
+  background: rgba(255, 255, 255, 0.94);
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
 }
 
-.brand span,
+.brand-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.nav-collapsed .brand-copy,
+.nav-collapsed .desktop-nav .nav-label {
+  display: none;
+}
+
+.nav-collapsed .sidebar {
+  padding-inline: 14px;
+}
+
+.nav-collapsed .brand-row {
+  justify-content: center;
+}
+
+.nav-collapsed .desktop-nav button {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.brand-copy span,
 .muted,
 .section-heading p,
 .hero-panel p,
@@ -97,7 +140,7 @@ a {
   color: var(--muted);
 }
 
-.brand span {
+.brand-copy span {
   display: block;
   color: #b7c9bf;
   font-size: 0.84rem;
@@ -109,7 +152,8 @@ nav {
   gap: 6px;
 }
 
-nav button {
+.desktop-nav button,
+.mobile-nav-drawer button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -122,10 +166,23 @@ nav button {
   text-align: left;
 }
 
-nav button:hover,
-nav button.active {
+.desktop-nav button:hover,
+.desktop-nav button.active,
+.mobile-nav-drawer button:hover,
+.mobile-nav-drawer button.active {
   background: rgba(255, 255, 255, 0.12);
   color: white;
+}
+
+.mobile-nav-drawer,
+.mobile-menu-button {
+  display: none;
+}
+
+.nav-collapse-button {
+  color: #dce9df;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .workspace {
@@ -168,6 +225,23 @@ nav button.active {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.browser-collapsed {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 56vh;
+  border: 1px dashed var(--line-strong, #c7d2df);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: center;
+  padding: 28px;
+}
+
+.browser-collapsed h2,
+.browser-collapsed p {
+  margin: 0;
 }
 
 .dashboard-grid {
@@ -800,6 +874,10 @@ textarea {
   cursor: pointer;
 }
 
+.sidebar .mobile-menu-button {
+  display: none;
+}
+
 .agent-field {
   display: grid;
   gap: 6px;
@@ -885,6 +963,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .app-shell.nav-collapsed {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     position: sticky;
     top: 0;
@@ -893,20 +975,39 @@ textarea {
     overflow: hidden;
   }
 
-  .brand {
+  .brand-row {
+    min-height: 48px;
+  }
+
+  .brand-copy {
+    display: block;
+  }
+
+  .nav-collapse-button,
+  .desktop-nav {
     display: none;
   }
 
-  nav {
-    display: flex;
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
+  .sidebar .mobile-menu-button {
+    display: grid;
+    color: #dce9df;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
   }
 
-  nav button {
-    flex: 0 0 auto;
-    white-space: nowrap;
+  .mobile-nav-drawer.open {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+    max-width: 100%;
+    gap: 6px;
+    padding-top: 10px;
+  }
+
+  .mobile-nav-drawer button {
+    min-width: 0;
+    min-height: 44px;
+    white-space: normal;
   }
 
   .dashboard-grid,

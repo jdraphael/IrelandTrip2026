@@ -43,6 +43,98 @@ describe('Ireland trip app', () => {
     expect(screen.getByRole('button', { name: /Research Agent/i })).toBeInTheDocument();
   });
 
+  it('uses the provided icon asset for the app brand instead of the IE text mark', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+
+    expect(screen.getByRole('img', { name: /Ireland Trip Agent icon/i })).toHaveAttribute('src', '/icon-192.png');
+    expect(screen.queryByText('IE')).not.toBeInTheDocument();
+  });
+
+  it('collapses and expands the desktop navigation while keeping icon-only navigation available', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    const shell = screen.getByTestId('app-shell');
+
+    expect(shell).not.toHaveClass('nav-collapsed');
+    await userEvent.click(screen.getByRole('button', { name: /Collapse navigation/i }));
+
+    expect(shell).toHaveClass('nav-collapsed');
+    expect(screen.getByRole('button', { name: /^Itinerary$/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Expand navigation/i }));
+    expect(shell).not.toHaveClass('nav-collapsed');
+  });
+
+  it('collapses and expands the browser workspace view', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+
+    await userEvent.click(screen.getByRole('button', { name: /Collapse browser view/i }));
+    expect(screen.queryByText('Planning Health')).not.toBeInTheDocument();
+    expect(screen.getByText(/Browser view is collapsed/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Expand browser view/i }));
+    expect(screen.getByText('Planning Health')).toBeInTheDocument();
+  });
+
+  it('provides a mobile navigation menu that expands and collapses', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    const mobileNav = screen.getByLabelText('Mobile navigation');
+
+    expect(mobileNav).toHaveAttribute('aria-hidden', 'true');
+    await userEvent.click(screen.getByRole('button', { name: /Open navigation menu/i }));
+
+    expect(mobileNav).toHaveAttribute('aria-hidden', 'false');
+    await userEvent.click(screen.getByRole('button', { name: /Close navigation menu/i }));
+    expect(mobileNav).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('lets the map switch from day view to all itinerary stops', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));

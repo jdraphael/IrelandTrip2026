@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Bot, CalendarDays, CheckCircle2, ExternalLink, FileCheck2, Landmark, Loader2, MapPinned, MessageCircle, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Bot, CalendarDays, CheckCircle2, ChevronsLeft, ChevronsRight, ExternalLink, Eye, EyeOff, FileCheck2, Landmark, Loader2, MapPinned, Menu, MessageCircle, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
@@ -44,6 +44,30 @@ function sourceLookup(items: SourceLink[] = []) {
 
 function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'good' | 'warn' | 'danger' }) {
   return <span className={`pill pill-${tone}`}>{children}</span>;
+}
+
+function BrandMark() {
+  return (
+    <span className="brand-mark">
+      <img className="brand-icon" src="/icon-192.png" alt="Ireland Trip Agent icon" draggable="false" />
+    </span>
+  );
+}
+
+function NavigationItems({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
+  return (
+    <>
+      {tabs.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button className={activeTab === item.id ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)} aria-label={item.label}>
+            <Icon size={18} />
+            <span className="nav-label">{item.label}</span>
+          </button>
+        );
+      })}
+    </>
+  );
 }
 
 function ProgressBar({ value, tone = 'green' }: { value: number; tone?: 'green' | 'blue' }) {
@@ -652,6 +676,9 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [selectedDayId, setSelectedDayId] = useState('day-3');
   const [state, setState] = useState<AppState>({ itinerary: [], research: [] });
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [browserCollapsed, setBrowserCollapsed] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
   const [passcode, setPasscode] = useState('');
@@ -705,6 +732,12 @@ export default function App() {
 
   const activeSources = useMemo(() => state.sources?.items || [], [state.sources]);
 
+  const selectTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    setBrowserCollapsed(false);
+    setMobileNavOpen(false);
+  };
+
   const saveItinerary = async (updates: Partial<DayPlan>[]) => {
     const itinerary = await api.saveItinerary(updates);
     setState((current) => ({ ...current, itinerary }));
@@ -753,7 +786,7 @@ export default function App() {
     return (
       <main className="login-screen">
         <section className="login-card">
-          <div className="brand-mark">IE</div>
+          <BrandMark />
           <h1>Ireland Trip Agent</h1>
           <p>Enter the family passcode to open the planner.</p>
           <input
@@ -776,25 +809,31 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">IE</div>
+        <div className="brand-row">
+          <div className="brand">
+            <BrandMark />
+            <div className="brand-copy">
+              <strong>Ireland Agent</strong>
+              <span>Family planning tool</span>
+            </div>
+          </div>
           <div>
-            <strong>Ireland Agent</strong>
-            <span>Family planning tool</span>
+            <button className="icon-button nav-collapse-button" onClick={() => setNavCollapsed((current) => !current)} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}>
+              {navCollapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+            </button>
+            <button className="icon-button mobile-menu-button" onClick={() => setMobileNavOpen((current) => !current)} aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileNavOpen} title={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}>
+              {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
         </div>
-        <nav>
-          {tabs.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button className={tab === item.id ? 'active' : ''} key={item.id} onClick={() => setTab(item.id)}>
-                <Icon size={18} /> {item.label}
-              </button>
-            );
-          })}
+        <nav className="desktop-nav" aria-label="Primary navigation">
+          <NavigationItems activeTab={tab} onSelect={selectTab} />
         </nav>
+        <div className={`mobile-nav-drawer ${mobileNavOpen ? 'open' : ''}`} aria-label="Mobile navigation" aria-hidden={mobileNavOpen ? 'false' : 'true'}>
+          <NavigationItems activeTab={tab} onSelect={selectTab} />
+        </div>
       </aside>
       <section className="workspace">
         <header className="topbar">
@@ -803,19 +842,35 @@ export default function App() {
             <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="topbar-meta">
+            <button className="button ghost compact" onClick={() => setBrowserCollapsed((current) => !current)} aria-label={browserCollapsed ? 'Expand browser view' : 'Collapse browser view'}>
+              {browserCollapsed ? <Eye size={15} /> : <EyeOff size={15} />}
+              {browserCollapsed ? 'Expand View' : 'Collapse View'}
+            </button>
             <StatusPill tone="good">June 2027</StatusPill>
             <StatusPill>{state.trip?.travelers || 5} travelers</StatusPill>
             {authRequired && <button className="button ghost compact" onClick={logout}>Log out</button>}
           </div>
         </header>
         {error && <button className="notice" onClick={() => setError('')}>{error}</button>}
-        {tab === 'dashboard' && <Dashboard state={state} setTab={setTab} />}
-        {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} />}
-        {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
-        {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
-        {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
-        {tab === 'tasks' && <TasksView tasks={state.tasks} onSave={saveTasks} />}
-        {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
+        {browserCollapsed ? (
+          <section className="browser-collapsed" aria-live="polite">
+            <h2>Browser view is collapsed</h2>
+            <p className="muted">Expand the view to return to the {tabs.find((item) => item.id === tab)?.label} workspace.</p>
+            <button className="button secondary" onClick={() => setBrowserCollapsed(false)} aria-label="Restore browser view">
+              <Eye size={16} /> Restore Browser View
+            </button>
+          </section>
+        ) : (
+          <>
+            {tab === 'dashboard' && <Dashboard state={state} setTab={selectTab} />}
+            {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} />}
+            {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
+            {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
+            {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
+            {tab === 'tasks' && <TasksView tasks={state.tasks} onSave={saveTasks} />}
+            {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
+          </>
+        )}
       </section>
     </main>
   );
