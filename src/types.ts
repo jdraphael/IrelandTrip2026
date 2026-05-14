@@ -39,6 +39,16 @@ export interface Lodging {
   notes?: string;
 }
 
+export interface PaymentTag {
+  id: string;
+  kind: 'card' | 'cash';
+  label: string;
+  network?: 'Visa' | 'Mastercard' | 'American Express' | 'Any';
+  minCashEur?: number;
+  maxCashEur?: number;
+  note?: string;
+}
+
 export interface DayPlan {
   id: string;
   day: number;
@@ -52,6 +62,7 @@ export interface DayPlan {
   stops: Stop[];
   notes: string;
   sourceIds?: string[];
+  paymentTags?: PaymentTag[];
 }
 
 export interface BudgetItem {

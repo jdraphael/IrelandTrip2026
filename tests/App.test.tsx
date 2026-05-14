@@ -43,6 +43,43 @@ describe('Ireland trip app', () => {
     expect(screen.getByRole('button', { name: /Research Agent/i })).toBeInTheDocument();
   });
 
+  it('renders payment guidance chips at the bottom of itinerary day cards', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        {
+          id: 'day-5',
+          day: 5,
+          title: 'Drive to Kilkenny',
+          dateLabel: 'June 2027',
+          base: 'Kilkenny',
+          stops: [{ id: 'kilkenny-castle', name: 'Kilkenny Castle', kind: 'activity', latitude: 53, longitude: -6 }],
+          notes: 'Drive south.',
+          paymentTags: [
+            { id: 'visa', kind: 'card', label: 'Visa', network: 'Visa', note: 'Primary card for hotels and tickets' },
+            { id: 'mastercard', kind: 'card', label: 'Mastercard', network: 'Mastercard', note: 'Backup card' },
+            { id: 'cash', kind: 'cash', label: 'EUR 60-120', minCashEur: 60, maxCashEur: 120, note: 'Parking, tips, and smaller vendors' }
+          ]
+        }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+
+    const paymentGroup = await screen.findByLabelText(/Recommended payment methods for day 5/i);
+    expect(paymentGroup).toHaveTextContent('Visa');
+    expect(paymentGroup).toHaveTextContent('Mastercard');
+    expect(paymentGroup).toHaveTextContent('EUR 60-120');
+  });
+
   it('lets the map switch from day view to all itinerary stops', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));

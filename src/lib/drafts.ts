@@ -1,4 +1,4 @@
-import type { BookingTask, BudgetItem, DayPlan, ItineraryDraftPayload, ItineraryPatchDraftPayload, ItineraryReplaceDraftPayload, ResearchDraft, Stop } from '../types';
+import type { BookingTask, BudgetItem, DayPlan, ItineraryDraftPayload, ItineraryPatchDraftPayload, ItineraryReplaceDraftPayload, PaymentTag, ResearchDraft, Stop } from '../types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object';
@@ -23,9 +23,25 @@ function isValidStop(value: unknown): value is Stop {
   );
 }
 
+function isValidPaymentTag(value: unknown): value is PaymentTag {
+  if (!isRecord(value)) return false;
+  const kind = String(value.kind);
+  const network = typeof value.network === 'string' ? value.network : undefined;
+  return (
+    isNonEmptyString(value.id) &&
+    (kind === 'card' || kind === 'cash') &&
+    isNonEmptyString(value.label) &&
+    (network === undefined || ['Visa', 'Mastercard', 'American Express', 'Any'].includes(network)) &&
+    (value.minCashEur === undefined || isNumber(value.minCashEur)) &&
+    (value.maxCashEur === undefined || isNumber(value.maxCashEur)) &&
+    (value.note === undefined || typeof value.note === 'string')
+  );
+}
+
 function isDayPlan(value: unknown): value is DayPlan {
   if (!isRecord(value)) return false;
   const stops = Array.isArray(value.stops) ? value.stops : [];
+  const paymentTags = Array.isArray(value.paymentTags) ? value.paymentTags : [];
   return (
     isNonEmptyString(value.id) &&
     isNumber(value.day) &&
@@ -34,7 +50,8 @@ function isDayPlan(value: unknown): value is DayPlan {
     isNonEmptyString(value.base) &&
     typeof value.notes === 'string' &&
     Array.isArray(value.stops) &&
-    stops.every(isValidStop)
+    stops.every(isValidStop) &&
+    (value.paymentTags === undefined || (Array.isArray(value.paymentTags) && paymentTags.every(isValidPaymentTag)))
   );
 }
 
@@ -46,7 +63,15 @@ export function isItineraryPatchDraftPayload(payload: unknown): payload is Itine
   if (!payload || typeof payload !== 'object') return false;
   const candidate = payload as Partial<ItineraryPatchDraftPayload>;
   const stops = Array.isArray(candidate.patch?.stops) ? candidate.patch.stops : [];
-  return (candidate.mode === undefined || candidate.mode === 'patch') && typeof candidate.dayId === 'string' && !!candidate.patch && typeof candidate.patch === 'object' && stops.every(isValidStop);
+  const paymentTags = Array.isArray(candidate.patch?.paymentTags) ? candidate.patch.paymentTags : [];
+  return (
+    (candidate.mode === undefined || candidate.mode === 'patch') &&
+    typeof candidate.dayId === 'string' &&
+    !!candidate.patch &&
+    typeof candidate.patch === 'object' &&
+    stops.every(isValidStop) &&
+    (candidate.patch.paymentTags === undefined || (Array.isArray(candidate.patch.paymentTags) && paymentTags.every(isValidPaymentTag)))
+  );
 }
 
 export function assertValidReplacementDays(days: DayPlan[]) {
@@ -125,7 +150,12 @@ export function applyResearchDraft(itinerary: DayPlan[], draft: ResearchDraft): 
   if (isRecord(draft.payload) && draft.payload.mode === 'replace') {
     if (!Array.isArray(draft.payload.days)) throw new Error('Invalid replacement itinerary days');
     assertValidReplacementDays(draft.payload.days as DayPlan[]);
-    return (draft.payload.days as DayPlan[]).map((day) => ({ ...day, stops: [...day.stops], lodging: day.lodging ? { ...day.lodging } : undefined }));
+    return (draft.payload.days as DayPlan[]).map((day) => ({
+      ...day,
+      stops: [...day.stops],
+      lodging: day.lodging ? { ...day.lodging } : undefined,
+      paymentTags: day.paymentTags ? day.paymentTags.map((tag) => ({ ...tag })) : undefined
+    }));
   }
   if (!isItineraryPatchDraftPayload(draft.payload)) {
     throw new Error('Invalid itinerary draft payload');
@@ -137,16 +167,20 @@ export function applyResearchDraft(itinerary: DayPlan[], draft: ResearchDraft): 
 
   return itinerary.map((day) => {
     if (day.id !== payload.dayId) {
-      return { ...day, stops: [...day.stops] };
+      return { ...day, stops: [...day.stops], paymentTags: day.paymentTags ? day.paymentTags.map((tag) => ({ ...tag })) : undefined };
     }
     const incomingStops = payload.patch.stops || [];
     const stops = incomingStops.reduce((current, stop) => upsertById(current, stop), [...day.stops]);
-    const { stops: _ignoredStops, ...patch } = payload.patch;
+    const paymentTags = payload.patch.paymentTags
+      ? payload.patch.paymentTags.map((tag) => ({ ...tag }))
+      : day.paymentTags?.map((tag) => ({ ...tag }));
+    const { stops: _ignoredStops, paymentTags: _ignoredPaymentTags, ...patch } = payload.patch;
 
     return {
       ...day,
       ...patch,
-      stops
+      stops,
+      paymentTags
     };
   });
 }

@@ -217,6 +217,30 @@ describe('trip agent API', () => {
     expect(itinerary.body[11].title).toBe('Fly home');
   });
 
+  it('instructs the research agent to refresh itinerary payment tags', async () => {
+    openAiMock.responsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        answer: 'I prepared a payment-aware itinerary update.',
+        warnings: [],
+        drafts: []
+      }),
+      output: []
+    });
+    const db = createTestDatabase();
+    const app = createApp({ db, openAiApiKey: 'test-key' });
+
+    await request(app)
+      .post('/api/research')
+      .send({ question: 'Add a rural farm stop to Day 10.' })
+      .expect(200);
+
+    const prompt = openAiMock.responsesCreate.mock.calls[0][0].input as string;
+    expect(prompt).toContain('paymentTags');
+    expect(prompt).toContain('daily EUR ranges');
+    expect(prompt).toContain('Visa');
+    expect(prompt).toContain('Mastercard');
+  });
+
   it('extracts a JSON draft object when model output includes leading prose', async () => {
     openAiMock.responsesCreate.mockResolvedValue({
       output_text: `Here is the draft:\n${JSON.stringify({

@@ -37,6 +37,16 @@ const stop = (
   notes = ''
 ) => ({ id, name, latitude, longitude, kind, sourceIds, notes });
 
+const paymentTags = (minCashEur: number, maxCashEur: number, note: string): DayPlan['paymentTags'] => [
+  { id: 'visa', kind: 'card', label: 'Visa', network: 'Visa', note: 'Recommended primary card' },
+  { id: 'mastercard', kind: 'card', label: 'Mastercard', network: 'Mastercard', note: 'Recommended backup card' },
+  { id: 'cash', kind: 'cash', label: `EUR ${minCashEur}-${maxCashEur}`, minCashEur, maxCashEur, note }
+];
+
+const cityPaymentTags = () => paymentTags(30, 80, 'Recommended daily cash range for transit, tips, and backup.');
+const ruralPaymentTags = () => paymentTags(60, 120, 'Recommended daily cash range for parking, small vendors, and backup.');
+const dinglePaymentTags = () => paymentTags(80, 150, 'Recommended daily cash range for rural stops, farm experiences, parking, and backup.');
+
 const itinerary: DayPlan[] = [
   {
     id: 'day-1',
@@ -47,7 +57,8 @@ const itinerary: DayPlan[] = [
     route: 'LEX -> connecting airport -> DUB',
     driveTime: 'No Ireland driving',
     stops: [stop('lex', 'Lexington Blue Grass Airport', 38.0365, -84.6059, 'airport')],
-    notes: 'Book main cabin or equivalent so the family can choose seats together.'
+    notes: 'Book main cabin or equivalent so the family can choose seats together.',
+    paymentTags: cityPaymentTags()
   },
   {
     id: 'day-2',
@@ -60,7 +71,8 @@ const itinerary: DayPlan[] = [
       stop('dub-airport', 'Dublin Airport', 53.4264, -6.2499, 'airport'),
       stop('staycity-dublin', 'Staycity Aparthotels Dublin Castle', 53.3403, -6.2705, 'lodging', ['src-staycity'])
     ],
-    notes: 'Keep arrival day light. No rental car until leaving Dublin.'
+    notes: 'Keep arrival day light. No rental car until leaving Dublin.',
+    paymentTags: cityPaymentTags()
   },
   {
     id: 'day-3',
@@ -74,7 +86,8 @@ const itinerary: DayPlan[] = [
       stop('dublin-zoo', 'Dublin Zoo', 53.3564, -6.3053, 'activity', ['src-dublin-zoo'], 'Animal-focused day for the girls.'),
       stop('phoenix-park', 'Phoenix Park', 53.3559, -6.3298, 'viewpoint')
     ],
-    notes: 'Book zoo tickets ahead once 2027 ticket windows open.'
+    notes: 'Book zoo tickets ahead once 2027 ticket windows open.',
+    paymentTags: cityPaymentTags()
   },
   {
     id: 'day-4',
@@ -87,7 +100,8 @@ const itinerary: DayPlan[] = [
       stop('book-kells', 'Book of Kells Experience', 53.3438, -6.2546, 'activity', ['src-book-kells']),
       stop('grafton-street', 'Grafton Street', 53.342, -6.2591, 'activity')
     ],
-    notes: 'Time-slot tickets are likely worth booking before travel.'
+    notes: 'Time-slot tickets are likely worth booking before travel.',
+    paymentTags: cityPaymentTags()
   },
   {
     id: 'day-5',
@@ -103,7 +117,8 @@ const itinerary: DayPlan[] = [
       stop('irish-national-stud', 'Irish National Stud and Gardens', 53.1524, -6.9103, 'drive-stop'),
       stop('kilkenny-castle', 'Kilkenny Castle', 52.6505, -7.2494, 'activity', ['src-kilkenny-castle'])
     ],
-    notes: 'Pick up the rental car after Dublin sightseeing, then ease into left-side driving.'
+    notes: 'Pick up the rental car after Dublin sightseeing, then ease into left-side driving.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-6',
@@ -119,7 +134,8 @@ const itinerary: DayPlan[] = [
       stop('mitchelstown-cave', 'Mitchelstown Cave', 52.267, -8.087, 'drive-stop'),
       stop('cork-base', 'Cork family base', 51.8985, -8.4756, 'lodging')
     ],
-    notes: 'Use this as the first longer driving day with a planned break.'
+    notes: 'Use this as the first longer driving day with a planned break.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-7',
@@ -130,7 +146,8 @@ const itinerary: DayPlan[] = [
     driveTime: 'Local drives under 30 minutes',
     lodging: { name: 'Farmhouse or family Airbnb outside Cork', type: 'airbnb', nightlyEstimate: 225 },
     stops: [stop('blarney-castle', 'Blarney Castle and Gardens', 51.9291, -8.5709, 'activity', ['src-blarney'])],
-    notes: 'Book online to reduce summer queue stress.'
+    notes: 'Book online to reduce summer queue stress.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-8',
@@ -143,7 +160,8 @@ const itinerary: DayPlan[] = [
       stop('fota', 'Fota Wildlife Park', 51.891, -8.3059, 'activity', ['src-fota'], 'High-priority animal stop.'),
       stop('kinsale', 'Kinsale', 51.7059, -8.5222, 'drive-stop')
     ],
-    notes: 'Choose Fota as the anchor; Kinsale is the optional color-and-coast add-on.'
+    notes: 'Choose Fota as the anchor; Kinsale is the optional color-and-coast add-on.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-9',
@@ -159,7 +177,8 @@ const itinerary: DayPlan[] = [
       stop('inch-beach', 'Inch Beach', 52.1437, -9.9826, 'drive-stop'),
       stop('dingle-town', 'Dingle', 52.1409, -10.264, 'lodging')
     ],
-    notes: 'Keep the route scenic but avoid overloading the day.'
+    notes: 'Keep the route scenic but avoid overloading the day.',
+    paymentTags: dinglePaymentTags()
   },
   {
     id: 'day-10',
@@ -172,7 +191,8 @@ const itinerary: DayPlan[] = [
       stop('dingle-sheepdogs', 'Dingle Sheepdogs', 52.1359, -10.3362, 'activity', ['src-dingle-sheepdogs'], 'Key lamb/sheepdog experience.'),
       stop('slea-head', 'Slea Head Drive', 52.1047, -10.4546, 'viewpoint')
     ],
-    notes: 'Cash and schedule details should be rechecked close to travel.'
+    notes: 'Cash and schedule details should be rechecked close to travel.',
+    paymentTags: dinglePaymentTags()
   },
   {
     id: 'day-11',
@@ -186,7 +206,8 @@ const itinerary: DayPlan[] = [
       stop('killarney-national-park', 'Killarney National Park', 52.0167, -9.506, 'viewpoint'),
       stop('gap-dunloe', 'Gap of Dunloe', 52.0236, -9.6338, 'activity')
     ],
-    notes: 'Use as a flexible day depending on weather and energy.'
+    notes: 'Use as a flexible day depending on weather and energy.',
+    paymentTags: dinglePaymentTags()
   },
   {
     id: 'day-12',
@@ -202,7 +223,8 @@ const itinerary: DayPlan[] = [
       stop('bunratty', 'Bunratty Castle and Folk Park', 52.6965, -8.8117, 'drive-stop'),
       stop('connacht-hotel', 'The Connacht Hotel', 53.2867, -9.0188, 'lodging', ['src-connacht'])
     ],
-    notes: 'This is the longest relocation day; plan snacks and a real stop.'
+    notes: 'This is the longest relocation day; plan snacks and a real stop.',
+    paymentTags: dinglePaymentTags()
   },
   {
     id: 'day-13',
@@ -212,7 +234,8 @@ const itinerary: DayPlan[] = [
     base: 'Galway',
     lodging: { name: 'The Connacht Hotel', type: 'hotel', nightlyEstimate: 250, sourceIds: ['src-connacht'] },
     stops: [stop('cliffs-moher', 'Cliffs of Moher', 52.9715, -9.4309, 'viewpoint', ['src-cliffs'])],
-    notes: 'Check weather before committing this day; visibility matters.'
+    notes: 'Check weather before committing this day; visibility matters.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-14',
@@ -225,7 +248,8 @@ const itinerary: DayPlan[] = [
       stop('connemara', 'Connemara National Park', 53.548, -9.9486, 'viewpoint'),
       stop('salthill', 'Salthill Promenade', 53.2592, -9.0741, 'activity')
     ],
-    notes: 'Flexible outdoor day with Galway food and markets as the fallback.'
+    notes: 'Flexible outdoor day with Galway food and markets as the fallback.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-15',
@@ -241,7 +265,8 @@ const itinerary: DayPlan[] = [
       stop('clonmacnoise', 'Clonmacnoise Monastic Site', 53.3276, -7.9846, 'drive-stop'),
       stop('clayton-airport', 'Clayton Hotel Dublin Airport', 53.4129, -6.2179, 'lodging', ['src-clayton'])
     ],
-    notes: 'Return rental car and make the final morning easy.'
+    notes: 'Return rental car and make the final morning easy.',
+    paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-16',
@@ -252,7 +277,8 @@ const itinerary: DayPlan[] = [
     route: 'DUB -> connecting airport -> LEX',
     driveTime: 'Airport shuttle only',
     stops: [stop('dub-departure', 'Dublin Airport', 53.4264, -6.2499, 'airport')],
-    notes: 'Keep confirmations, passports, and receipts together the night before.'
+    notes: 'Keep confirmations, passports, and receipts together the night before.',
+    paymentTags: cityPaymentTags()
   }
 ];
 

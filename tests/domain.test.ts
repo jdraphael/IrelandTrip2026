@@ -136,6 +136,50 @@ describe('research drafts', () => {
     expect(updated[0].notes).toContain('Rock of Cashel');
   });
 
+  it('applies itinerary payment tags from a day patch draft', () => {
+    const original: DayPlan[] = [
+      {
+        id: 'day-5',
+        day: 5,
+        title: 'Drive to Kilkenny',
+        base: 'Kilkenny',
+        dateLabel: 'June 2027',
+        stops: [{ id: 'kilkenny-castle', name: 'Kilkenny Castle', kind: 'activity', latitude: 52.6505, longitude: -7.2492 }],
+        notes: 'Drive south.',
+        paymentTags: [
+          { id: 'visa', kind: 'card', label: 'Visa', network: 'Visa', note: 'Primary card' },
+          { id: 'cash', kind: 'cash', label: 'EUR 30-80', minCashEur: 30, maxCashEur: 80, note: 'City backup cash' }
+        ]
+      }
+    ];
+    const draft: ResearchDraft = {
+      id: 'draft-payment-tags',
+      kind: 'itinerary',
+      title: 'Refresh Kilkenny payment guidance',
+      createdAt: '2026-05-10T12:00:00Z',
+      status: 'draft',
+      payload: {
+        dayId: 'day-5',
+        patch: {
+          paymentTags: [
+            { id: 'visa', kind: 'card', label: 'Visa', network: 'Visa', note: 'Primary card for hotels and tickets' },
+            { id: 'mastercard', kind: 'card', label: 'Mastercard', network: 'Mastercard', note: 'Backup card' },
+            { id: 'cash', kind: 'cash', label: 'EUR 60-120', minCashEur: 60, maxCashEur: 120, note: 'Parking, tips, and smaller vendors' }
+          ]
+        }
+      }
+    };
+
+    const updated = applyResearchDraft(original, draft);
+
+    expect(updated[0].paymentTags).toEqual([
+      { id: 'visa', kind: 'card', label: 'Visa', network: 'Visa', note: 'Primary card for hotels and tickets' },
+      { id: 'mastercard', kind: 'card', label: 'Mastercard', network: 'Mastercard', note: 'Backup card' },
+      { id: 'cash', kind: 'cash', label: 'EUR 60-120', minCashEur: 60, maxCashEur: 120, note: 'Parking, tips, and smaller vendors' }
+    ]);
+    expect(original[0].paymentTags?.map((tag) => tag.label)).toEqual(['Visa', 'EUR 30-80']);
+  });
+
   it('applies budget add and update drafts by id', () => {
     const original: BudgetItem[] = [
       { id: 'rental-car', category: 'Transportation', label: 'Rental car', planned: 1500, actual: 0, status: 'watching' }
@@ -242,6 +286,35 @@ describe('research drafts', () => {
     expect(updated[0].title).toBe('Travel to Dublin');
     expect(updated[11].title).toBe('Fly home');
     expect(original).toHaveLength(16);
+  });
+
+  it('preserves payment tags on valid replacement itinerary drafts', () => {
+    const original = Array.from({ length: 16 }, (_value, index) => day(index + 1));
+    const replacementDays = Array.from({ length: 12 }, (_value, index) => ({
+      ...day(index + 1),
+      paymentTags: [
+        { id: 'visa', kind: 'card' as const, label: 'Visa', network: 'Visa' as const, note: 'Primary card' },
+        { id: 'mastercard', kind: 'card' as const, label: 'Mastercard', network: 'Mastercard' as const, note: 'Backup card' },
+        { id: 'cash', kind: 'cash' as const, label: 'EUR 60-120', minCashEur: 60, maxCashEur: 120, note: 'Daily cash range' }
+      ]
+    }));
+    const draft: ResearchDraft = {
+      id: 'draft-replace-with-payments',
+      kind: 'itinerary',
+      title: 'Compress trip with payment guidance',
+      createdAt: '2026-05-11T00:00:00Z',
+      status: 'draft',
+      payload: {
+        mode: 'replace',
+        days: replacementDays,
+        removedDayIds: ['day-4', 'day-8', 'day-13', 'day-14']
+      }
+    };
+
+    const updated = applyResearchDraft(original, draft);
+
+    expect(updated).toHaveLength(12);
+    expect(updated[4].paymentTags?.map((tag) => tag.label)).toEqual(['Visa', 'Mastercard', 'EUR 60-120']);
   });
 
   it('rejects invalid replacement drafts without partial changes', () => {
