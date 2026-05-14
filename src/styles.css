@@ -244,6 +244,242 @@ nav {
   margin: 0;
 }
 
+.currency-header-control {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.currency-tile {
+  display: grid;
+  gap: 3px;
+  min-width: 190px;
+  max-width: 240px;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 14px;
+  padding: 9px 12px;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.62)),
+    rgba(255, 255, 255, 0.74);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.currency-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
+.currency-tile:focus-visible,
+.currency-retry:focus-visible,
+.currency-modal button:focus-visible,
+.currency-modal input:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 3px;
+}
+
+.currency-tile strong {
+  font-size: 0.93rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.currency-flags,
+.currency-status-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+}
+
+.currency-flags {
+  color: #334155;
+  font-size: 0.77rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.currency-code {
+  font-size: 0.72rem;
+  letter-spacing: 0;
+}
+
+.currency-status-line {
+  color: #64748b;
+  font-size: 0.73rem;
+  line-height: 1.2;
+}
+
+.currency-status-line span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currency-trend,
+.currency-refreshing {
+  flex: 0 0 auto;
+}
+
+.currency-trend {
+  display: inline-flex;
+  color: #64748b;
+}
+
+.currency-trend-up {
+  color: #166534;
+}
+
+.currency-trend-down {
+  color: #b42318;
+}
+
+.currency-refreshing,
+.currency-tile-loading .currency-status-line::after {
+  animation: spin 0.9s linear infinite;
+}
+
+.currency-tile-loading {
+  cursor: default;
+  overflow: hidden;
+  position: relative;
+}
+
+.currency-tile-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.currency-retry {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  width: 36px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--danger);
+  background: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+}
+
+.currency-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(8px);
+}
+
+.currency-modal {
+  display: grid;
+  gap: 18px;
+  width: min(440px, calc(100vw - 32px));
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 20px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.currency-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.currency-modal h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.currency-modal-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--emerald-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.currency-calculator {
+  display: grid;
+  gap: 10px;
+}
+
+.currency-calculator label,
+.currency-input-row span,
+.currency-result span,
+.currency-modal-meta {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.currency-input-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--surface-soft);
+}
+
+.currency-input-row input {
+  min-width: 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: 1.35rem;
+  font-weight: 800;
+  text-align: right;
+  outline: none;
+}
+
+.currency-result {
+  display: grid;
+  gap: 5px;
+  border-radius: 16px;
+  padding: 16px;
+  color: white;
+  background: linear-gradient(135deg, var(--emerald-dark), #1d4ed8);
+  box-shadow: 0 18px 40px rgba(11, 102, 91, 0.22);
+}
+
+.currency-result span {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.currency-result strong {
+  font-size: 2.3rem;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.currency-modal-meta {
+  display: grid;
+  gap: 5px;
+  font-weight: 650;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -958,6 +1194,21 @@ textarea {
   to { transform: rotate(360deg); }
 }
 
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media (max-width: 1040px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -1025,6 +1276,10 @@ textarea {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
+
+  .topbar-meta {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1038,6 +1293,24 @@ textarea {
   .day-title-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .topbar-meta,
+  .currency-header-control,
+  .currency-tile {
+    width: 100%;
+  }
+
+  .currency-tile {
+    max-width: none;
+  }
+
+  .currency-status-line span:first-child {
+    white-space: normal;
+  }
+
+  .currency-result strong {
+    font-size: 1.95rem;
   }
 
   .day-card,

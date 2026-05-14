@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Bot, CalendarDays, CheckCircle2, ChevronsLeft, ChevronsRight, ExternalLink, Eye, EyeOff, FileCheck2, Landmark, Loader2, MapPinned, Menu, MessageCircle, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
+import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
 import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
@@ -842,6 +843,7 @@ export default function App() {
             <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="topbar-meta">
+            <CurrencyHeaderTile />
             <button className="button ghost compact" onClick={() => setBrowserCollapsed((current) => !current)} aria-label={browserCollapsed ? 'Expand browser view' : 'Collapse browser view'}>
               {browserCollapsed ? <Eye size={15} /> : <EyeOff size={15} />}
               {browserCollapsed ? 'Expand View' : 'Collapse View'}

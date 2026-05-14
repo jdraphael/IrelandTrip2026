@@ -22,6 +22,7 @@ const tripResponse = {
 describe('Ireland trip app', () => {
   it('renders the command center with seeded trip context', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
@@ -41,6 +42,9 @@ describe('Ireland trip app', () => {
     expect(screen.getByText('June 2027')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Itinerary/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Research Agent/i })).toBeInTheDocument();
+    expect(await screen.findByText('1 USD = 0.85 EUR')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Budget/i }));
+    expect(screen.getByText('1 USD = 0.85 EUR')).toBeInTheDocument();
   });
 
   it('uses the provided icon asset for the app brand instead of the IE text mark', async () => {
