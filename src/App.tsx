@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Bell, Bot, CalendarDays, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, ExternalLink, Eye, EyeOff, FileCheck2, Home, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
+import { ChecklistDashboard } from './components/ChecklistDashboard';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
 import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
@@ -922,7 +923,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell">
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell">
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -969,7 +970,7 @@ export default function App() {
         </div>
       </aside>
       <section className="workspace">
-        <header className="topbar">
+        {tab !== 'tasks' && <header className="topbar">
           <div>
             {tab === 'dashboard' ? (
               <p className="dashboard-greeting">Good morning, Thomas! <span aria-hidden="true">👋</span></p>
@@ -991,7 +992,7 @@ export default function App() {
             <StatusPill>{state.trip?.travelers || 5} travelers</StatusPill>
             {authRequired && <button className="button ghost compact" onClick={logout}>Log out</button>}
           </div>
-        </header>
+        </header>}
         {error && <button className="notice" onClick={() => setError('')}>{error}</button>}
         {browserCollapsed ? (
           <section className="browser-collapsed" aria-live="polite">
@@ -1008,7 +1009,7 @@ export default function App() {
             {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
             {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
             {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
-            {tab === 'tasks' && <TasksView tasks={state.tasks} onSave={saveTasks} />}
+            {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} onSave={saveTasks} />}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
           </>
         )}

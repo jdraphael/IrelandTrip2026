@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Winding Irish road for driving planning">
+  <defs><linearGradient id="c" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cfe4e1"/><stop offset="1" stop-color="#34543b"/></linearGradient></defs>
+  <rect width="420" height="260" fill="url(#c)"/>
+  <path d="M0 151c93-41 170-45 230-12 48 27 111 23 190-11v132H0z" fill="#6e8d4e"/>
+  <path d="M197 260c-18-45-16-83 7-113 30-39 23-81-22-126" fill="none" stroke="#26323d" stroke-width="64"/>
+  <path d="M197 260c-18-45-16-83 7-113 30-39 23-81-22-126" fill="none" stroke="#f7f4ee" stroke-width="5" stroke-dasharray="18 20"/>
+</svg>

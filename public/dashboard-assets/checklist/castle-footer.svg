@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 150" role="img" aria-label="Irish castle at sunset">
+  <defs><linearGradient id="d" x1="0" x2="1"><stop stop-color="#0b5d3b"/><stop offset=".55" stop-color="#365f42"/><stop offset="1" stop-color="#d9b95b"/></linearGradient></defs>
+  <rect width="420" height="150" fill="url(#d)"/>
+  <circle cx="342" cy="42" r="34" fill="#f5d58a" opacity=".7"/>
+  <path d="M0 112c90-34 168-34 234-2 53 26 115 24 186-7v47H0z" fill="#173b2b" opacity=".72"/>
+  <path d="M246 53h31v63h-31zM284 70h32v46h-32zM323 45h36v71h-36z" fill="#253327"/>
+  <path d="M242 53h39l-20-18zM319 45h44l-22-20z" fill="#16231c"/>
+</svg>

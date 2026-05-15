@@ -83,6 +83,16 @@ export interface BookingTask {
   category: string;
   notes?: string;
   sourceIds?: string[];
+  priority?: 'high' | 'medium' | 'low';
+  displayCategory?: 'Flights & Travel' | 'Lodging & Stays' | 'Driving in Ireland' | 'Family Prep' | 'Experiences';
+  description?: string;
+  aiSuggestion?: string;
+  imageKey?: string;
+  actionLabel?: string;
+  subtasksTotal?: number;
+  subtasksDone?: number;
+  assignedTo?: string[];
+  familyImpact?: string;
 }
 
 export interface TaskSummary {

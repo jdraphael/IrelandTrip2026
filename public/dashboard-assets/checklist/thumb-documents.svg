@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Travel documents and confirmations">
+  <rect width="420" height="260" fill="#efe6d3"/>
+  <rect x="72" y="44" width="208" height="154" rx="12" fill="#fdfdfc" transform="rotate(-5 176 121)"/>
+  <rect x="124" y="70" width="208" height="154" rx="12" fill="#fff9e8" transform="rotate(8 228 147)"/>
+  <path d="M164 111h104M159 142h128M155 173h96" stroke="#0b5d3b" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="95" cy="56" r="22" fill="#d9b95b"/>
+</svg>

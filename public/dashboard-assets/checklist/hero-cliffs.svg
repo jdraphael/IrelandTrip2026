@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" role="img" aria-label="Golden Ireland coastline with cliffs and sheep">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff2d7"/>
+      <stop offset=".45" stop-color="#dfece8"/>
+      <stop offset="1" stop-color="#78a9bf"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" x2="1">
+      <stop offset="0" stop-color="#ead7b5"/>
+      <stop offset=".45" stop-color="#8db5ad"/>
+      <stop offset="1" stop-color="#365f66"/>
+    </linearGradient>
+    <linearGradient id="grass" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#b7a65b"/>
+      <stop offset=".45" stop-color="#537b34"/>
+      <stop offset="1" stop-color="#183c29"/>
+    </linearGradient>
+    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="520" fill="url(#sky)"/>
+  <circle cx="318" cy="104" r="96" fill="#fff8df" opacity=".85" filter="url(#blur)"/>
+  <path d="M0 300c170-70 330-70 504-15 150 47 291 46 438 0 200-63 411-57 658 16v219H0z" fill="url(#sea)"/>
+  <path d="M0 391c181-56 343-60 496-13 187 57 372 46 524-1 178-55 363-43 580 36v107H0z" fill="#f7f4ee" opacity=".42"/>
+  <path d="M760 126c124-44 256-57 398-37 108 16 256 57 442 122v309H684c52-107 73-199 65-276-5-47-1-86 11-118z" fill="url(#grass)"/>
+  <path d="M846 137c114-25 212-27 295-10 100 21 237 58 412 113v78c-168-58-298-95-391-112-111-19-221-13-330 18z" fill="#c1ad61" opacity=".88"/>
+  <path d="M875 212c-26 82-37 167-31 255M1008 167c-32 92-44 190-35 294M1167 171c-37 87-51 183-43 287M1333 210c-37 80-52 161-44 248" fill="none" stroke="#2a2d1a" stroke-width="10" opacity=".38"/>
+  <path d="M1200 106h50v19h-50zM1221 78h8v31h-8z" fill="#172b20" opacity=".78"/>
+  <g fill="#f4f0df" stroke="#6e694c" stroke-width="3" opacity=".98">
+    <ellipse cx="1324" cy="234" rx="28" ry="18"/>
+    <circle cx="1297" cy="229" r="10"/>
+    <ellipse cx="1413" cy="246" rx="28" ry="18"/>
+    <circle cx="1386" cy="241" r="10"/>
+    <ellipse cx="1482" cy="224" rx="26" ry="17"/>
+    <circle cx="1457" cy="220" r="9"/>
+  </g>
+  <g fill="#c9a6c7" opacity=".88">
+    <circle cx="1050" cy="405" r="18"/><circle cx="1116" cy="392" r="14"/><circle cx="1190" cy="412" r="18"/>
+    <circle cx="1262" cy="388" r="16"/><circle cx="1334" cy="410" r="13"/><circle cx="1408" cy="398" r="18"/>
+  </g>
+  <rect width="1600" height="520" fill="url(#sky)" opacity=".05"/>
+</svg>

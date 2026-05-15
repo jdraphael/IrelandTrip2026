@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Family lodging in Irish countryside">
+  <rect width="420" height="260" fill="#f4ead7"/>
+  <path d="M0 164c114-52 220-55 420-2v98H0z" fill="#5f8b4c"/>
+  <path d="M92 125h210v93H92z" fill="#f7f4ee"/>
+  <path d="M72 130 198 49l125 81z" fill="#9b5f3d"/>
+  <path d="M125 154h36v64h-36zM198 156h68v44h-68z" fill="#0b5d3b" opacity=".88"/>
+  <circle cx="348" cy="70" r="44" fill="#fff3cc"/>
+</svg>

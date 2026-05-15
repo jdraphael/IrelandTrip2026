@@ -4,6 +4,18 @@ import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, S
 import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
+const seedVersion = '4';
+
+function mergeSeedTasks(seedTasks: BookingTask[], currentTasks: BookingTask[] = [], preserveStatus = true) {
+  const currentById = new Map(currentTasks.map((task) => [task.id, task]));
+  const seedIds = new Set(seedTasks.map((task) => task.id));
+  const upgraded = seedTasks.map((task) => {
+    const current = currentById.get(task.id);
+    return current && preserveStatus ? { ...task, status: current.status, subtasksDone: current.subtasksDone ?? task.subtasksDone } : task;
+  });
+  const custom = currentTasks.filter((task) => !seedIds.has(task.id));
+  return [...upgraded, ...custom];
+}
 
 export class PostgresTripDatabase implements TripDatabase {
   private sql: ReturnType<typeof neon>;
@@ -23,7 +35,13 @@ export class PostgresTripDatabase implements TripDatabase {
   private async initialize() {
     await this.sql`CREATE TABLE IF NOT EXISTS trip_agent_kv (key TEXT PRIMARY KEY, value JSONB NOT NULL)`;
     const rows = (await this.sql`SELECT value FROM trip_agent_kv WHERE key = 'seedVersion'`) as Array<{ value: string }>;
-    if (rows[0]?.value === '1') return;
+    if (rows[0]?.value === seedVersion) return;
+    if (rows[0]) {
+      const currentTasks = (await this.sql`SELECT value FROM trip_agent_kv WHERE key = 'tasks'`) as Array<{ value: BookingTask[] }>;
+      await this.setWithoutInit('tasks', mergeSeedTasks(this.seed.tasks, currentTasks[0]?.value || [], rows[0].value === '1'));
+      await this.setWithoutInit('seedVersion', seedVersion);
+      return;
+    }
     await this.setWithoutInit('trip', this.seed.trip);
     await this.setWithoutInit('itinerary', this.seed.itinerary);
     await this.setWithoutInit('budget', this.seed.budget);
@@ -31,7 +49,7 @@ export class PostgresTripDatabase implements TripDatabase {
     await this.setWithoutInit('sources', this.seed.sources);
     await this.setWithoutInit('drafts', []);
     await this.setWithoutInit('researchAnswers', []);
-    await this.setWithoutInit('seedVersion', '1');
+    await this.setWithoutInit('seedVersion', seedVersion);
   }
 
   private async get<T>(key: StoreKey): Promise<T> {

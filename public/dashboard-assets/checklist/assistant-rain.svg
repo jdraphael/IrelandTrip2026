@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 180" role="img" aria-label="Green raincoat and umbrella">
+  <rect width="220" height="180" fill="#fdfdfc"/>
+  <path d="M132 42c34 4 57 24 70 61H62c12-37 35-57 70-61z" fill="#5f8b4c"/>
+  <path d="M132 42v94" stroke="#24323d" stroke-width="6" stroke-linecap="round"/>
+  <path d="M85 76c-21 23-33 55-35 96h71c-2-39-14-71-36-96z" fill="#0b5d3b"/>
+  <path d="M71 115h33M72 139h31" stroke="#f7f4ee" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+  <g stroke="#9bb8aa" stroke-width="3" stroke-linecap="round" opacity=".65">
+    <path d="M177 30l-5 13M198 47l-6 14M159 54l-5 13"/>
+  </g>
+</svg>

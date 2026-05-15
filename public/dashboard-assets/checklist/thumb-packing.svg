@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Waterproof rain jacket and umbrella">
+  <rect width="420" height="260" fill="#f7f4ee"/>
+  <path d="M264 73c42 4 71 30 88 78H177c14-48 43-74 87-78z" fill="#0b5d3b"/>
+  <path d="M264 73v113" stroke="#24323d" stroke-width="8" stroke-linecap="round"/>
+  <path d="M156 80c-33 28-51 72-54 132h108c-2-57-20-101-54-132z" fill="#5f8b4c"/>
+  <path d="M132 134h49M133 162h49" stroke="#f7f4ee" stroke-width="7" stroke-linecap="round" opacity=".8"/>
+</svg>

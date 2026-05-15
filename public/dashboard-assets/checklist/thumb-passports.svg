@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Passports on a travel map">
+  <rect width="420" height="260" fill="#e8ddc4"/>
+  <path d="M0 82c72 22 136 20 193-7s128-27 227 1v184H0z" fill="#c9d3b7"/>
+  <path d="M34 190c89-43 164-46 226-9 42 25 92 25 160 1" fill="none" stroke="#7e936d" stroke-width="9" opacity=".45"/>
+  <rect x="156" y="43" width="142" height="186" rx="10" fill="#122941" transform="rotate(-8 227 136)"/>
+  <path d="M198 98h64M189 132h83M198 166h64" stroke="#d9b95b" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+  <circle cx="229" cy="70" r="16" fill="none" stroke="#d9b95b" stroke-width="5"/>
+</svg>

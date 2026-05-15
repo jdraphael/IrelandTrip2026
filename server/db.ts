@@ -6,6 +6,18 @@ import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, S
 import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
+const seedVersion = '4';
+
+function mergeSeedTasks(seedTasks: BookingTask[], currentTasks: BookingTask[] = [], preserveStatus = true) {
+  const currentById = new Map(currentTasks.map((task) => [task.id, task]));
+  const seedIds = new Set(seedTasks.map((task) => task.id));
+  const upgraded = seedTasks.map((task) => {
+    const current = currentById.get(task.id);
+    return current && preserveStatus ? { ...task, status: current.status, subtasksDone: current.subtasksDone ?? task.subtasksDone } : task;
+  });
+  const custom = currentTasks.filter((task) => !seedIds.has(task.id));
+  return [...upgraded, ...custom];
+}
 
 class SqliteTripDatabase implements TripDatabase {
   private db: Database.Database;
@@ -20,7 +32,14 @@ class SqliteTripDatabase implements TripDatabase {
   private seedIfNeeded(seed: SeedData) {
     const count = this.db.prepare('SELECT COUNT(*) as count FROM kv').get() as { count: number };
     const version = this.db.prepare('SELECT value FROM kv WHERE key = ?').get('seedVersion') as { value: string } | undefined;
-    if (count.count > 0 && version?.value === '"1"') return;
+    const currentVersion = version ? JSON.parse(version.value) as string : undefined;
+    if (count.count > 0 && currentVersion === seedVersion) return;
+    if (count.count > 0) {
+      const currentTasks = this.db.prepare('SELECT value FROM kv WHERE key = ?').get('tasks') as { value: string } | undefined;
+      this.set('tasks', mergeSeedTasks(seed.tasks, currentTasks ? JSON.parse(currentTasks.value) as BookingTask[] : [], currentVersion === '1'));
+      this.set('seedVersion', seedVersion);
+      return;
+    }
     this.set('trip', seed.trip);
     this.set('itinerary', seed.itinerary);
     this.set('budget', seed.budget);
@@ -28,7 +47,7 @@ class SqliteTripDatabase implements TripDatabase {
     this.set('sources', seed.sources);
     this.set('drafts', []);
     this.set('researchAnswers', []);
-    this.set('seedVersion', '1');
+    this.set('seedVersion', seedVersion);
   }
 
   private get<T>(key: StoreKey): T {

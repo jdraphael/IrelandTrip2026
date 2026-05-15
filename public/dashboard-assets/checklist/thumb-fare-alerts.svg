@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Phone showing fare alerts in Ireland">
+  <defs><linearGradient id="b" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#9fc4be"/><stop offset=".6" stop-color="#315f49"/><stop offset="1" stop-color="#10271f"/></linearGradient></defs>
+  <rect width="420" height="260" fill="url(#b)"/>
+  <path d="M0 183c90-54 163-61 219-20 53 38 120 34 201-15v112H0z" fill="#b7a65b" opacity=".56"/>
+  <rect x="121" y="34" width="148" height="201" rx="26" fill="#081b18" transform="rotate(-10 195 134)"/>
+  <rect x="139" y="58" width="111" height="145" rx="15" fill="#f7f4ee" transform="rotate(-10 195 134)"/>
+  <path d="M156 102h72M161 132h83M166 161h56" stroke="#0b5d3b" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="152" cy="101" r="10" fill="#d9b95b"/>
+</svg>

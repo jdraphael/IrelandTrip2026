@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { TasksResponse } from '../src/api';
 import App from '../src/App';
 
 const tripResponse = {
@@ -20,6 +21,153 @@ const tripResponse = {
 };
 
 describe('Ireland trip app', () => {
+  const richTasksResponse: TasksResponse = {
+    items: [
+      {
+        id: 'task-book-flights',
+        title: 'Book flights and seats together',
+        status: 'open',
+        dueDate: '2026-09-15',
+        category: 'Flights',
+        displayCategory: 'Flights & Travel',
+        priority: 'high',
+        description: 'Avoid basic economy. Prefer Delta or Aer Lingus main cabin.',
+        aiSuggestion: 'Tuesday departures currently average 12% cheaper.',
+        imageKey: 'flights',
+        actionLabel: 'View Options',
+        subtasksDone: 0,
+        subtasksTotal: 2,
+        assignedTo: ['Thomas', 'Laura']
+      },
+      {
+        id: 'task-passports',
+        title: 'Renew kids passports',
+        status: 'done',
+        dueDate: '2026-10-01',
+        category: 'Documents',
+        displayCategory: 'Family Prep',
+        priority: 'medium',
+        description: 'Passports expire August 2027. Allow enough time for renewal processing.',
+        aiSuggestion: 'Apply by June to avoid summer delays.',
+        imageKey: 'passports',
+        actionLabel: 'Open Documents',
+        subtasksDone: 1,
+        subtasksTotal: 1
+      },
+      {
+        id: 'task-book-lodging',
+        title: 'Book refundable lodging holds',
+        status: 'open',
+        dueDate: '2027-01-15',
+        category: 'Lodging',
+        displayCategory: 'Lodging & Stays',
+        priority: 'medium',
+        description: 'Hold family-friendly stays near each route base.',
+        aiSuggestion: 'Refundable aparthotels protect the route while prices settle.',
+        imageKey: 'lodging',
+        actionLabel: 'View Stays',
+        subtasksDone: 2,
+        subtasksTotal: 5
+      }
+    ],
+    summary: { total: 3, done: 1, open: 2, blocked: 0 }
+  };
+
+  function stubChecklistApp(tasksResponse: TasksResponse = richTasksResponse) {
+    return vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel day', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'dub', name: 'Dublin Airport', kind: 'airport', latitude: 53, longitude: -6 }], notes: 'Go' },
+        { id: 'day-2', day: 2, title: 'Dublin', dateLabel: 'June 2027', base: 'Dublin', stops: [], notes: 'Dublin' },
+        { id: 'day-5', day: 5, title: 'Drive to Kilkenny', dateLabel: 'June 2027', base: 'Kilkenny', stops: [], notes: 'Kilkenny' },
+        { id: 'day-6', day: 6, title: 'Kilkenny to Cork', dateLabel: 'June 2027', base: 'Cork', stops: [], notes: 'Cork' },
+        { id: 'day-9', day: 9, title: 'Drive to Dingle', dateLabel: 'June 2027', base: 'Dingle', stops: [], notes: 'Dingle' },
+        { id: 'day-12', day: 12, title: 'Dingle to Galway', dateLabel: 'June 2027', base: 'Galway', stops: [], notes: 'Galway' },
+        { id: 'day-15', day: 15, title: 'Return to Dublin Airport', dateLabel: 'June 2027', base: 'Dublin Airport', stops: [], notes: 'Dublin' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks') && init?.method === 'PATCH') {
+        return Promise.resolve(Response.json({
+          ...tasksResponse,
+          items: tasksResponse.items.map((task) => task.id === 'task-book-flights' ? { ...task, status: 'done', subtasksDone: task.subtasksTotal || 1 } : task),
+          summary: { total: tasksResponse.items.length, done: 2, open: Math.max(0, tasksResponse.items.length - 2), blocked: 0 }
+        }));
+      }
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json(tasksResponse));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+  }
+
+  it('renders the cinematic checklist dashboard with hero, route timeline, filters, cards, and widgets', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp());
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+
+    expect(screen.getByRole('heading', { name: /Ireland Family Adventure/i })).toBeInTheDocument();
+    expect(screen.getByText(/392 days to go/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/LEX/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Kilkenny/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Checklist/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Flights & Travel/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Book flights and seats together/i })).toBeInTheDocument();
+    expect(screen.getByText(/Tuesday departures currently average 12% cheaper/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Category Progress/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /AI Travel Assistant/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Family Progress/i })).toBeInTheDocument();
+  });
+
+  it('filters checklist cards by category', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp());
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /Lodging & Stays/i }));
+
+    expect(screen.getByRole('heading', { name: /Book refundable lodging holds/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Book flights and seats together/i })).not.toBeInTheDocument();
+  });
+
+  it('marks a checklist card complete through the task API', async () => {
+    const fetchMock = stubChecklistApp();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: /Mark Complete/i })[0]);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/tasks', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify([{ id: 'task-book-flights', status: 'done' }])
+    }));
+    expect(await screen.findAllByText(/Completed/i)).not.toHaveLength(0);
+  });
+
+  it('renders legacy checklist tasks with derived visual metadata', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp({
+      items: [
+        { id: 'legacy-flight', title: 'Book flights', status: 'open', dueDate: '2026-09-15', category: 'Flights' },
+        { id: 'legacy-car', title: 'Reserve rental car', status: 'open', dueDate: '2027-02-15', category: 'Rental Car' }
+      ],
+      summary: { total: 2, done: 0, open: 2, blocked: 0 }
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+
+    expect(screen.getByRole('heading', { name: /Book flights/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Driving in Ireland/i })).toBeInTheDocument();
+    expect(screen.getByText(/Due Sept 15, 2026/i)).toBeInTheDocument();
+  });
+
   it('renders the command center with seeded trip context', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));

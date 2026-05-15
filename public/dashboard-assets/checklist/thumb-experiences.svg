@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Irish castle and family experiences">
+  <rect width="420" height="260" fill="#d6e6df"/>
+  <circle cx="78" cy="70" r="44" fill="#f3d994"/>
+  <path d="M0 180c78-45 159-48 242-8 54 26 113 24 178-7v95H0z" fill="#5f8b4c"/>
+  <path d="M126 77h42v117h-42zM178 102h42v92h-42zM230 64h48v130h-48z" fill="#776f59"/>
+  <path d="M121 77h52l-26-24zM225 64h58l-29-28z" fill="#5b4f3e"/>
+  <path d="M101 194h198v29H101z" fill="#6b624d"/>
+</svg>

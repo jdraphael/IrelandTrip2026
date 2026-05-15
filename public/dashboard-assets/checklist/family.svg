@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Family portrait in Ireland">
+  <rect width="240" height="160" fill="#dfe8d4"/>
+  <path d="M0 110c64-34 126-38 240 0v50H0z" fill="#5f8b4c"/>
+  <circle cx="84" cy="70" r="24" fill="#c8895f"/><circle cx="122" cy="62" r="28" fill="#d49a70"/><circle cx="162" cy="73" r="22" fill="#b87656"/>
+  <path d="M54 139c9-30 28-45 57-45s48 15 57 45M110 142c8-35 31-52 67-52s58 17 65 52" fill="#143f2c" opacity=".9"/>
+</svg>
