@@ -234,7 +234,10 @@ nav {
   min-height: 56vh;
   border: 1px dashed var(--line-strong, #c7d2df);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.72)),
+    var(--asset-family-hub) center bottom / min(76%, 520px) auto no-repeat,
+    rgba(255, 255, 255, 0.72);
   text-align: center;
   padding: 28px;
 }
@@ -695,7 +698,18 @@ nav {
 }
 
 .day-body {
+  position: relative;
   padding: 18px;
+}
+
+.day-thumb {
+  float: right;
+  width: clamp(110px, 22vw, 168px);
+  aspect-ratio: 16 / 9;
+  margin: 0 0 12px 16px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
 }
 
 .day-body h3,
@@ -763,6 +777,11 @@ textarea {
   gap: 12px;
   position: sticky;
   top: 20px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88)),
+    var(--asset-research) right bottom / min(70%, 330px) auto no-repeat,
+    var(--surface);
 }
 
 .checkbox {
@@ -885,6 +904,9 @@ textarea {
 .map-sidebar {
   padding: 20px;
   border-right: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 247, 0.86)),
+    var(--asset-map) center bottom / cover no-repeat;
   overflow: auto;
 }
 
@@ -982,11 +1004,15 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82)),
+    var(--asset-budget) right center / auto 100% no-repeat,
+    white;
 }
 
 .budget-summary div {
   padding: 18px;
-  background: white;
+  background: rgba(255, 255, 255, 0.76);
 }
 
 .budget-summary span {
@@ -1006,6 +1032,10 @@ textarea {
 
 .task-row {
   grid-template-columns: auto minmax(0, 1fr) auto;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9)),
+    var(--asset-checklist) right center / auto 160% no-repeat,
+    var(--surface);
 }
 
 .check {
@@ -1030,6 +1060,10 @@ textarea {
   grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) minmax(220px, 1fr) auto;
   gap: 12px;
   align-items: end;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86)),
+    var(--asset-source) right center / auto 140% no-repeat,
+    var(--surface);
 }
 
 .source-table {
@@ -1081,7 +1115,9 @@ textarea {
   padding: 16px;
   border: 1px solid rgba(219, 227, 234, 0.9);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.93)),
+    var(--asset-chat) center / cover no-repeat;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
   backdrop-filter: blur(18px);
 }
@@ -1141,7 +1177,7 @@ textarea {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface-soft);
+  background: rgba(248, 250, 252, 0.88);
 }
 
 .empty,
@@ -1152,7 +1188,10 @@ textarea {
   border: 1px dashed var(--line-strong, #c7d2df);
   border-radius: 8px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.72)),
+    var(--asset-empty) center bottom / min(70%, 360px) auto no-repeat,
+    rgba(255, 255, 255, 0.62);
 }
 
 .loading {
@@ -1164,6 +1203,10 @@ textarea {
   place-items: center;
   min-height: 100vh;
   padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(4, 28, 20, 0.64), rgba(4, 35, 28, 0.22)),
+    var(--asset-login) center / cover no-repeat,
+    #061c16;
 }
 
 .login-card {
@@ -1173,8 +1216,9 @@ textarea {
   padding: 28px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(20px) saturate(130%);
 }
 
 .login-card h1,
@@ -1343,7 +1387,10 @@ textarea {
 
 .dashboard-shell {
   grid-template-columns: 260px minmax(0, 1fr);
-  background: #f7faf8;
+  background:
+    linear-gradient(180deg, rgba(247, 250, 248, 0.92), rgba(255, 255, 255, 0.86)),
+    var(--asset-texture) center / 900px auto repeat,
+    #f7faf8;
 }
 
 .dashboard-shell .sidebar {
@@ -1353,6 +1400,8 @@ textarea {
   gap: 18px;
   padding: 30px 18px 20px;
   background:
+    linear-gradient(180deg, rgba(0, 47, 34, 0.4), rgba(0, 47, 34, 0.78)),
+    var(--asset-sidebar) center / cover no-repeat,
     radial-gradient(circle at 18% 104%, rgba(98, 151, 86, 0.26), transparent 140px),
     linear-gradient(155deg, #003d2d 0%, #00513b 58%, #023824 100%);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08), 12px 0 30px rgba(8, 47, 36, 0.12);
@@ -1414,6 +1463,9 @@ textarea {
   align-items: center;
   margin-top: auto;
   padding: 10px;
+  background:
+    linear-gradient(90deg, rgba(0, 52, 37, 0.84), rgba(0, 83, 57, 0.46)),
+    var(--asset-family) center / cover no-repeat;
 }
 
 .family-avatar-stack {
@@ -1453,6 +1505,9 @@ textarea {
 .sidebar-help-card {
   gap: 10px;
   padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.07)),
+    rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-help-card img {
@@ -1464,7 +1519,10 @@ textarea {
 
 .dashboard-shell .workspace {
   padding: 34px 26px 34px 28px;
-  background: #fbfdfb;
+  background:
+    linear-gradient(180deg, rgba(251, 253, 251, 0.9), rgba(251, 253, 251, 0.96)),
+    var(--asset-texture) center / 860px auto repeat,
+    #fbfdfb;
 }
 
 .dashboard-shell .topbar {
@@ -1535,7 +1593,7 @@ textarea {
   overflow: hidden;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.78) 34%, rgba(255, 255, 255, 0.12) 58%, rgba(255, 255, 255, 0.01) 100%),
-    url("/dashboard-assets/hero-cliffs.svg") 58% center / cover no-repeat;
+    var(--asset-hero) 58% center / cover no-repeat;
 }
 
 .dashboard-hero::before {
@@ -1590,15 +1648,26 @@ textarea {
 }
 
 .agent-button {
+  position: relative;
+  overflow: hidden;
   min-height: 48px;
   padding-inline: 20px;
-  background: #007747;
+  background:
+    linear-gradient(135deg, rgba(0, 119, 71, 0.94), rgba(0, 77, 54, 0.96)),
+    var(--asset-agent-button) right center / auto 180% no-repeat;
   box-shadow: 0 12px 25px rgba(0, 94, 57, 0.24);
 }
 
 .hero-planning-card {
   align-self: start;
   padding: 22px;
+}
+
+.planning-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.86)),
+    var(--asset-planning) center / cover no-repeat;
+  backdrop-filter: blur(18px) saturate(130%);
 }
 
 .mobile-planning-card {
@@ -1701,6 +1770,10 @@ textarea {
 .next-card {
   min-height: 350px;
   padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.8)),
+    var(--asset-checklist) right bottom / 84% auto no-repeat,
+    #ffffff;
 }
 
 .next-card h3 {
@@ -1734,6 +1807,10 @@ textarea {
 
 .route-card {
   padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.84)),
+    var(--asset-route) center / cover no-repeat,
+    #ffffff;
 }
 
 .route-strip {
@@ -1779,6 +1856,21 @@ textarea {
 .source-card {
   min-height: 300px;
   padding: 24px;
+  background: #ffffff;
+}
+
+.drive-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.78) 48%, rgba(255, 255, 255, 0.12) 100%),
+    var(--asset-drive) center bottom / cover no-repeat,
+    #ffffff;
+}
+
+.source-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.78) 48%, rgba(255, 255, 255, 0.14) 100%),
+    var(--asset-source) center bottom / cover no-repeat,
+    #ffffff;
 }
 
 .drive-card p,
@@ -1794,6 +1886,12 @@ textarea {
   font-size: 0.92rem;
 }
 
+.drive-card.illustrated-card > img,
+.source-card.illustrated-card > img {
+  max-height: 31%;
+  opacity: 0.86;
+}
+
 .drive-card .dashboard-link,
 .source-card .dashboard-link {
   position: relative;
@@ -1801,6 +1899,10 @@ textarea {
   justify-content: flex-start;
   width: fit-content;
   margin-top: 18px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
 }
 
 .source-card .warning {
@@ -1847,7 +1949,10 @@ textarea {
   .dashboard-shell {
     display: block;
     min-height: 100vh;
-    background: #ffffff;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 248, 0.92)),
+      var(--asset-texture) center / 720px auto repeat,
+      #ffffff;
   }
 
   .dashboard-shell .sidebar {
@@ -1856,7 +1961,9 @@ textarea {
     z-index: 20;
     height: auto;
     padding: 13px 18px;
-    background: rgba(255, 255, 255, 0.96);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9)),
+      var(--asset-mobile-nav) center / cover no-repeat;
     color: #153229;
     box-shadow: 0 8px 25px rgba(16, 54, 40, 0.08);
     backdrop-filter: blur(14px);
@@ -1903,7 +2010,7 @@ textarea {
 
   .dashboard-shell .workspace {
     padding: 8px 12px 86px;
-    background: #ffffff;
+    background: transparent;
   }
 
   .dashboard-shell .topbar {
@@ -1937,8 +2044,8 @@ textarea {
     min-height: 132px;
     padding: 14px 18px;
     background:
-      linear-gradient(90deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.58) 54%, rgba(255, 255, 255, 0.05) 100%),
-      url("/dashboard-assets/hero-cliffs.svg") center / cover no-repeat;
+      linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.42) 56%, rgba(255, 255, 255, 0.02) 100%),
+      var(--asset-mobile-hero) center 44% / cover no-repeat;
   }
 
   .hero-copy {
@@ -2019,7 +2126,11 @@ textarea {
   }
 
   .next-card {
-    padding-bottom: 88px;
+    padding-bottom: 112px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.58)),
+      var(--asset-checklist) right bottom / 100% auto no-repeat,
+      #ffffff;
   }
 
   .dashboard-card-title {
@@ -2051,7 +2162,7 @@ textarea {
   }
 
   .illustrated-card > img {
-    max-height: 82px;
+    max-height: 104px;
   }
 
   .bottom-nav {
@@ -2067,7 +2178,9 @@ textarea {
     padding: 7px 8px;
     border: 1px solid #e2ebe5;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.96);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.84)),
+      var(--asset-mobile-nav) center / cover no-repeat;
     box-shadow: 0 14px 40px rgba(16, 54, 40, 0.16);
     backdrop-filter: blur(14px);
   }

@@ -4,6 +4,7 @@ import { Bell, Bot, CalendarDays, CheckCircle2, ChevronDown, ChevronsLeft, Chevr
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
+import { dashboardAssets, itineraryThumbnailAssets } from './dashboardAssets';
 import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
@@ -28,6 +29,28 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof CalendarDays }> = [
 ];
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+const dashboardAssetStyle = {
+  '--asset-sidebar': `url(${dashboardAssets.sidebarBackground})`,
+  '--asset-hero': `url(${dashboardAssets.heroBanner})`,
+  '--asset-planning': `url(${dashboardAssets.planningHealth})`,
+  '--asset-route': `url(${dashboardAssets.routeSnapshot})`,
+  '--asset-drive': `url(${dashboardAssets.driveWatch})`,
+  '--asset-source': `url(${dashboardAssets.sourceStatus})`,
+  '--asset-agent-button': `url(${dashboardAssets.agentButton})`,
+  '--asset-family': `url(${dashboardAssets.familyProfile})`,
+  '--asset-mobile-nav': `url(${dashboardAssets.bottomMobileNav})`,
+  '--asset-mobile-hero': `url(${dashboardAssets.mobileHero})`,
+  '--asset-texture': `url(${dashboardAssets.backgroundTexture})`,
+  '--asset-checklist': `url(${dashboardAssets.checklist})`,
+  '--asset-budget': `url(${dashboardAssets.budget})`,
+  '--asset-research': `url(${dashboardAssets.researchAgent})`,
+  '--asset-family-hub': `url(${dashboardAssets.familyHub})`,
+  '--asset-empty': `url(${dashboardAssets.emptyState})`,
+  '--asset-login': `url(${dashboardAssets.loginBackground})`,
+  '--asset-map': `url(${dashboardAssets.irelandMap})`,
+  '--asset-chat': `url(${dashboardAssets.chatBackground})`
+} as CSSProperties;
 
 function googleMapsUrl(day: DayPlan) {
   const locations = day.stops.map((stop) => `${stop.latitude},${stop.longitude}`);
@@ -108,11 +131,24 @@ function ProgressBar({ value, tone = 'green' }: { value: number; tone?: 'green' 
 
 function routeThumb(base: string) {
   const key = base.toLowerCase();
-  if (key.includes('kilkenny')) return '/dashboard-assets/route-kilkenny.svg';
-  if (key.includes('cork')) return '/dashboard-assets/route-cork.svg';
-  if (key.includes('dingle') || key.includes('killarney')) return '/dashboard-assets/route-dingle.svg';
-  if (key.includes('galway')) return '/dashboard-assets/route-galway.svg';
-  return '/dashboard-assets/route-dublin.svg';
+  if (key.includes('kilkenny')) return itineraryThumbnailAssets[1];
+  if (key.includes('cork')) return itineraryThumbnailAssets[2];
+  if (key.includes('dingle')) return itineraryThumbnailAssets[3];
+  if (key.includes('galway')) return itineraryThumbnailAssets[4];
+  if (key.includes('killarney')) return itineraryThumbnailAssets[7];
+  return itineraryThumbnailAssets[0];
+}
+
+function itineraryThumb(day: DayPlan) {
+  const key = [day.base, day.title, day.route, ...day.stops.map((stop) => stop.name)].join(' ').toLowerCase();
+  if (key.includes('sheepdog') || key.includes('sheep farm')) return itineraryThumbnailAssets[6];
+  if (key.includes('cliffs of moher') || key.includes('moher')) return itineraryThumbnailAssets[5];
+  if (key.includes('killarney')) return itineraryThumbnailAssets[7];
+  if (key.includes('galway')) return itineraryThumbnailAssets[4];
+  if (key.includes('dingle')) return itineraryThumbnailAssets[3];
+  if (key.includes('cork')) return itineraryThumbnailAssets[2];
+  if (key.includes('kilkenny')) return itineraryThumbnailAssets[1];
+  return itineraryThumbnailAssets[0];
 }
 
 function AnswerText({ text }: { text: string }) {
@@ -333,7 +369,7 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
             <button className="button secondary checklist-button" onClick={() => setTab('tasks')}>Open Checklist</button>
           </>
         )}
-        <img src="/dashboard-assets/next-up.svg" alt="" aria-hidden="true" />
+        <img src={dashboardAssets.checklist} alt="" aria-hidden="true" />
       </section>
       <section className="panel route-card wide">
         <div className="dashboard-card-title">
@@ -367,7 +403,7 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
           <span>View driving details</span>
           <span aria-hidden="true">→</span>
         </button>
-        <img src="/dashboard-assets/drive-watch.svg" alt="" aria-hidden="true" />
+        <img src={dashboardAssets.driveWatch} alt="" aria-hidden="true" />
       </section>
       <section className="panel source-card illustrated-card">
         <div className="dashboard-card-title">
@@ -380,7 +416,7 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
           <span>View all sources</span>
           <span aria-hidden="true">→</span>
         </button>
-        <img src="/dashboard-assets/source-status.svg" alt="" aria-hidden="true" />
+        <img src={dashboardAssets.sourceStatus} alt="" aria-hidden="true" />
       </section>
     </div>
   );
@@ -413,6 +449,7 @@ function ItineraryView({
         <article className="day-card" key={day.id}>
           <div className="day-number">Day {day.day}</div>
           <div className="day-body">
+            <img className="day-thumb" src={itineraryThumb(day)} alt="" aria-hidden="true" />
             <div className="day-title-row">
               <div>
                 <h3>{day.title}</h3>
@@ -897,7 +934,7 @@ export default function App() {
 
   if (authRequired && !authenticated) {
     return (
-      <main className="login-screen">
+      <main className="login-screen" style={dashboardAssetStyle}>
         <section className="login-card">
           <BrandMark />
           <h1>Ireland Trip Agent</h1>
@@ -922,7 +959,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell">
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -960,7 +997,7 @@ export default function App() {
           <ChevronDown size={15} />
         </div>
         <div className="sidebar-help-card">
-          <img src="/dashboard-assets/route-dingle.svg" alt="" aria-hidden="true" />
+          <img src={dashboardAssets.researchAgent} alt="" aria-hidden="true" />
           <strong>Need local help?</strong>
           <span>Your Ireland Agent is just a message away.</span>
           <button className="button ghost compact" type="button" onClick={() => setTab('research')}>
