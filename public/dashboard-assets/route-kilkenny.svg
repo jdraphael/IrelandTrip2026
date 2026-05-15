@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 110" role="img" aria-label="Kilkenny castle thumbnail">
+  <rect width="220" height="110" fill="#c8e2e4"/>
+  <path d="M0 78c49-30 93-38 132-26 28 9 58 9 88 1v57H0z" fill="#72a05f"/>
+  <path d="M43 75V42h24v-9h16v42M95 75V29h30v46M140 75V47h24v-8h15v36" fill="#dfdac5" stroke="#6e694f" stroke-width="4"/>
+  <path d="M34 78h155" stroke="#f4f1e4" stroke-width="7" stroke-linecap="round"/>
+</svg>

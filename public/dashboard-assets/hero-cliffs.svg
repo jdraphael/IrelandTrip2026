@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 520" role="img" aria-label="Cliffs and sea along the Ireland route">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8efe2"/>
+      <stop offset=".48" stop-color="#d9ebee"/>
+      <stop offset="1" stop-color="#7fa7a2"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" x2="1">
+      <stop offset="0" stop-color="#a9c9c8"/>
+      <stop offset=".48" stop-color="#6f9999"/>
+      <stop offset="1" stop-color="#2f6566"/>
+    </linearGradient>
+    <linearGradient id="cliff" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#8f7a3c"/>
+      <stop offset=".52" stop-color="#654521"/>
+      <stop offset="1" stop-color="#2f2f1c"/>
+    </linearGradient>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+  <rect width="1400" height="520" fill="url(#sky)"/>
+  <circle cx="220" cy="105" r="86" fill="#fff7e6" opacity=".72" filter="url(#soft)"/>
+  <path d="M0 300c154-54 296-59 430-14 112 38 200 45 318 8 165-52 356-49 652 12v214H0z" fill="url(#sea)"/>
+  <path d="M0 392c171-68 342-77 522-29 191 51 355 42 487-3 138-48 257-42 391 24v136H0z" fill="#e7f1ea" opacity=".38"/>
+  <path d="M872 98c94-25 197-35 309-13 52 10 123 29 219 58v377H805c29-88 45-159 48-214 6-92-18-150 19-208z" fill="url(#cliff)"/>
+  <path d="M908 112c88-20 170-24 245-10 51 10 126 30 225 62v66c-94-32-165-53-213-64-86-19-173-15-262 9z" fill="#b6a659" opacity=".86"/>
+  <path d="M965 170c-18 90-24 168-18 235M1065 136c-17 92-22 185-15 279M1180 138c-26 89-34 183-25 282M1287 174c-32 83-44 165-36 246" stroke="#2d2919" stroke-width="9" opacity=".42"/>
+  <path d="M1010 97c-22 41-30 67-25 80 5 15 26 28 63 38M1162 102c-26 41-36 71-31 91 5 18 29 34 72 47" fill="none" stroke="#d5c174" stroke-width="7" opacity=".5"/>
+  <path d="M648 224c20-52 45-55 75-10 7 21 8 40 5 56l-90 13c-2-19 2-39 10-59z" fill="#48351f"/>
+  <path d="M683 167c9 39 11 71 6 97" stroke="#5b4328" stroke-width="14" stroke-linecap="round"/>
+  <path d="M580 328c92-31 198-29 316 7" stroke="#e9f5ef" stroke-width="8" opacity=".7"/>
+  <path d="M230 373c118-42 231-46 340-12" stroke="#f3f8f4" stroke-width="5" opacity=".62"/>
+  <path d="M0 0h1400v520H0z" fill="url(#sky)" opacity=".08"/>
+</svg>

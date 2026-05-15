@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 250" role="img" aria-label="Coastal driving route">
+  <defs>
+    <linearGradient id="water" x1="0" x2="1">
+      <stop offset="0" stop-color="#eaf4ef"/>
+      <stop offset="1" stop-color="#4b8a91"/>
+    </linearGradient>
+  </defs>
+  <rect width="620" height="250" fill="#f7fbf8"/>
+  <path d="M0 84c128-55 251-70 370-46 91 18 174 58 250 118v94H0z" fill="url(#water)"/>
+  <path d="M0 178c105-80 207-121 306-123 116-3 220 40 314 128v67H0z" fill="#c4d7b9"/>
+  <path d="M0 217c108-44 207-55 298-32 92 23 199 21 322-6v71H0z" fill="#5b8e61"/>
+  <path d="M320 250c53-93 110-145 170-155 47-8 90 10 130 55" fill="none" stroke="#efece2" stroke-width="42" stroke-linecap="round"/>
+  <path d="M324 250c52-87 106-135 162-144 43-7 83 10 120 51" fill="none" stroke="#46524a" stroke-width="24" stroke-linecap="round"/>
+  <path d="M351 219c28-45 56-74 85-87" stroke="#f8f4df" stroke-width="4" stroke-dasharray="18 18" fill="none" stroke-linecap="round"/>
+  <g transform="translate(451 154)">
+    <path d="M22 39h82c9 0 15-6 15-14v-8c0-7-5-12-12-14L80-3H39L16 13 2 18v8c0 8 8 13 20 13z" fill="#f9faf8" stroke="#263b34" stroke-width="4"/>
+    <circle cx="31" cy="39" r="11" fill="#1f332e"/>
+    <circle cx="91" cy="39" r="11" fill="#1f332e"/>
+    <path d="M42 3h36l19 10H29z" fill="#9cc5cb"/>
+  </g>
+</svg>

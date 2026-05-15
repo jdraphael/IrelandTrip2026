@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
-import { Bot, CalendarDays, CheckCircle2, ChevronsLeft, ChevronsRight, ExternalLink, Eye, EyeOff, FileCheck2, Landmark, Loader2, MapPinned, Menu, MessageCircle, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Bell, Bot, CalendarDays, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, ExternalLink, Eye, EyeOff, FileCheck2, Home, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
@@ -18,7 +18,7 @@ interface AppState {
 }
 
 const tabs: Array<{ id: Tab; label: string; icon: typeof CalendarDays }> = [
-  { id: 'dashboard', label: 'Dashboard', icon: Landmark },
+  { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'itinerary', label: 'Itinerary', icon: CalendarDays },
   { id: 'research', label: 'Research Agent', icon: Bot },
   { id: 'map', label: 'Map', icon: MapPinned },
@@ -71,12 +71,48 @@ function NavigationItems({ activeTab, onSelect }: { activeTab: Tab; onSelect: (t
   );
 }
 
+function MobileBottomNav({ activeTab, onSelect, onMore }: { activeTab: Tab; onSelect: (tab: Tab) => void; onMore: () => void }) {
+  const items: Array<{ id: Tab; label: string; icon: typeof CalendarDays }> = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'itinerary', label: 'Itinerary', icon: CalendarDays },
+    { id: 'map', label: 'Map', icon: MapPinned },
+    { id: 'tasks', label: 'Checklist', icon: FileCheck2 }
+  ];
+
+  return (
+    <nav className="bottom-nav" aria-label="Mobile dashboard navigation">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button type="button" className={activeTab === item.id ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)} aria-label={item.label}>
+            <Icon size={19} />
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
+      <button type="button" onClick={onMore} aria-label="More">
+        <MoreHorizontal size={20} />
+        <span>More</span>
+      </button>
+    </nav>
+  );
+}
+
 function ProgressBar({ value, tone = 'green' }: { value: number; tone?: 'green' | 'blue' }) {
   return (
     <div className="progress" aria-label={`${value}%`}>
       <span className={`progress-fill ${tone}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   );
+}
+
+function routeThumb(base: string) {
+  const key = base.toLowerCase();
+  if (key.includes('kilkenny')) return '/dashboard-assets/route-kilkenny.svg';
+  if (key.includes('cork')) return '/dashboard-assets/route-cork.svg';
+  if (key.includes('dingle') || key.includes('killarney')) return '/dashboard-assets/route-dingle.svg';
+  if (key.includes('galway')) return '/dashboard-assets/route-galway.svg';
+  return '/dashboard-assets/route-dublin.svg';
 }
 
 function AnswerText({ text }: { text: string }) {
@@ -219,56 +255,132 @@ function MapPanel({ days, selectedDayId, onSelectDay }: { days: DayPlan[]; selec
 function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => void }) {
   const nextTask = state.tasks?.summary.nextTask;
   const firstLongDay = state.itinerary.find((day) => day.distanceMiles && day.distanceMiles >= 130);
+  const plannedPercent = state.budget?.summary.plannedPercent || 0;
+  const remainingPlanned = state.budget?.summary.remainingPlanned || 0;
+  const budgetTarget = state.trip?.budgetTarget || 15000;
+  const routeDays = state.itinerary.filter((day) => day.base !== 'In flight' && day.base !== 'Travel home').slice(0, 8);
   return (
     <div className="dashboard-grid">
-      <section className="hero-panel">
-        <div>
-          <h1>{state.trip?.title || 'Ireland Family Trip'}</h1>
+      <section className="hero-panel dashboard-hero">
+        <div className="hero-copy">
+          <h1>Your Ireland adventure is waiting</h1>
           <p>{state.trip?.month} {state.trip?.year} · {state.trip?.travelers} travelers · {state.trip?.origin} to {state.trip?.destination}</p>
+          <button className="button primary agent-button" onClick={() => setTab('research')}><Bot size={17} /> Ask the Agent</button>
         </div>
-        <button className="button primary" onClick={() => setTab('research')}><Bot size={18} /> Ask the Agent</button>
+        <section className="panel planning-card hero-planning-card" aria-label="Planning Health">
+          <div className="dashboard-card-title">
+            <ShieldCheck size={19} />
+            <h2>Planning Health</h2>
+          </div>
+          <div className="planning-metrics">
+            <div className="progress-ring" style={{ '--progress': plannedPercent } as CSSProperties}>
+              <strong>{Math.round(plannedPercent)}%</strong>
+              <span>On Track</span>
+            </div>
+            <div>
+              <span className="metric-label">Budget planned</span>
+              <strong>{money.format(state.budget?.summary.planned || 0)}</strong>
+              <StatusPill tone={remainingPlanned >= 0 ? 'good' : 'danger'}>
+                {remainingPlanned >= 0 ? 'Within target' : 'Over target'}
+              </StatusPill>
+            </div>
+          </div>
+          <ProgressBar value={plannedPercent} />
+          <button className="dashboard-link" type="button" onClick={() => setTab('budget')}>
+            <span>{money.format(remainingPlanned)} remaining against {money.format(budgetTarget)}</span>
+            <span aria-hidden="true">›</span>
+          </button>
+        </section>
       </section>
-      <section className="panel">
-        <h2>Planning Health</h2>
-        <div className="metric-row">
+      <section className="panel planning-card mobile-planning-card">
+        <div className="dashboard-card-title">
+          <ShieldCheck size={19} />
+          <h2>Planning Health</h2>
+        </div>
+        <div className="planning-metrics">
+          <div className="progress-ring" style={{ '--progress': plannedPercent } as CSSProperties}>
+            <strong>{Math.round(plannedPercent)}%</strong>
+            <span>On Track</span>
+          </div>
           <div>
             <span className="metric-label">Budget planned</span>
             <strong>{money.format(state.budget?.summary.planned || 0)}</strong>
+            <StatusPill tone={remainingPlanned >= 0 ? 'good' : 'danger'}>
+              {remainingPlanned >= 0 ? 'Within target' : 'Over target'}
+            </StatusPill>
           </div>
-          <StatusPill tone={(state.budget?.summary.remainingPlanned || 0) >= 0 ? 'good' : 'danger'}>
-            {(state.budget?.summary.remainingPlanned || 0) >= 0 ? 'Within target' : 'Over target'}
-          </StatusPill>
         </div>
-        <ProgressBar value={state.budget?.summary.plannedPercent || 0} />
-        <p className="muted">{money.format(state.budget?.summary.remainingPlanned || 0)} remaining against {money.format(state.trip?.budgetTarget || 15000)}.</p>
+        <ProgressBar value={plannedPercent} />
+        <button className="dashboard-link" type="button" onClick={() => setTab('budget')}>
+          <span>{money.format(remainingPlanned)} remaining against {money.format(budgetTarget)}</span>
+          <span aria-hidden="true">›</span>
+        </button>
       </section>
-      <section className="panel">
-        <h2>Next Decision</h2>
+      <section className="panel next-card illustrated-card">
+        <div className="dashboard-card-title">
+          <CalendarDays size={19} />
+          <h2>Next Up</h2>
+        </div>
         {nextTask ? (
           <>
             <h3>{nextTask.title}</h3>
             <p>{nextTask.category} · due {nextTask.dueDate}</p>
-            <button className="button secondary" onClick={() => setTab('tasks')}><CheckCircle2 size={16} /> Open Checklist</button>
+            <button className="button secondary checklist-button" onClick={() => setTab('tasks')}>Open Checklist</button>
           </>
-        ) : <p className="muted">No open tasks.</p>}
+        ) : (
+          <>
+            <p className="muted">No open tasks.</p>
+            <button className="button secondary checklist-button" onClick={() => setTab('tasks')}>Open Checklist</button>
+          </>
+        )}
+        <img src="/dashboard-assets/next-up.svg" alt="" aria-hidden="true" />
       </section>
-      <section className="panel wide">
-        <h2>Route Snapshot</h2>
+      <section className="panel route-card wide">
+        <div className="dashboard-card-title">
+          <MapPinned size={21} />
+          <h2>Route Snapshot</h2>
+        </div>
         <p>{state.trip?.routeSummary}</p>
-        <div className="timeline-strip">
-          {state.itinerary.filter((day) => day.base !== 'In flight' && day.base !== 'Travel home').slice(0, 8).map((day) => (
-            <button key={day.id} onClick={() => setTab('map')}>{day.base}<span>Day {day.day}</span></button>
+        <div className="timeline-strip route-strip">
+          {routeDays.map((day) => (
+            <button key={day.id} onClick={() => setTab('map')}>
+              <span>Day {day.day}</span>
+              <strong>{day.base}</strong>
+              <img src={routeThumb(day.base)} alt="" aria-hidden="true" />
+            </button>
           ))}
         </div>
+        <button className="dashboard-link view-itinerary-link" type="button" onClick={() => setTab('itinerary')}>
+          <span>View full itinerary</span>
+          <span aria-hidden="true">→</span>
+        </button>
       </section>
-      <section className="panel">
-        <h2>Drive Watch</h2>
-        {firstLongDay ? <p><strong>Longest current day:</strong> Day {firstLongDay.day}, {firstLongDay.title}. Plan breaks every 90 minutes.</p> : <p className="muted">No long drive days marked.</p>}
+      <section className="panel drive-card illustrated-card">
+        <div className="dashboard-card-title">
+          <Route size={20} />
+          <h2>Drive Watch</h2>
+        </div>
+        {firstLongDay ? (
+          <p><strong>Longest driving day: Day {firstLongDay.day}</strong><br />{firstLongDay.title}<br /><span>Est. {firstLongDay.driveTime || '2h 15m'} <span /> {firstLongDay.distanceMiles || 180} km</span></p>
+        ) : <p className="muted">No long drive days marked.</p>}
+        <button className="dashboard-link" type="button" onClick={() => setTab('map')}>
+          <span>View driving details</span>
+          <span aria-hidden="true">→</span>
+        </button>
+        <img src="/dashboard-assets/drive-watch.svg" alt="" aria-hidden="true" />
       </section>
-      <section className="panel">
-        <h2>Source Status</h2>
+      <section className="panel source-card illustrated-card">
+        <div className="dashboard-card-title">
+          <ShieldCheck size={20} />
+          <h2>Source Status</h2>
+        </div>
         <p>{state.sources?.summary.officialCount || 0} official/government sources saved.</p>
-        {(state.sources?.summary.warnings || []).slice(0, 2).map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+        {(state.sources?.summary.warnings || []).slice(0, 1).map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+        <button className="dashboard-link" type="button" onClick={() => setTab('sources')}>
+          <span>View all sources</span>
+          <span aria-hidden="true">→</span>
+        </button>
+        <img src="/dashboard-assets/source-status.svg" alt="" aria-hidden="true" />
       </section>
     </div>
   );
@@ -810,13 +922,13 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell">
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell">
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
             <BrandMark />
             <div className="brand-copy">
-              <strong>Ireland Agent</strong>
+              <strong>Ireland Family Trip</strong>
               <span>Family planning tool</span>
             </div>
           </div>
@@ -835,14 +947,41 @@ export default function App() {
         <div className={`mobile-nav-drawer ${mobileNavOpen ? 'open' : ''}`} aria-label="Mobile navigation" aria-hidden={mobileNavOpen ? 'false' : 'true'}>
           <NavigationItems activeTab={tab} onSelect={selectTab} />
         </div>
+        <div className="sidebar-family-card">
+          <div className="family-avatar-stack" aria-hidden="true">
+            <span>J</span>
+            <span>T</span>
+            <span>3</span>
+          </div>
+          <div>
+            <strong>The Johnson Family</strong>
+            <span>Family Pass: 7D43K2</span>
+          </div>
+          <ChevronDown size={15} />
+        </div>
+        <div className="sidebar-help-card">
+          <img src="/dashboard-assets/route-dingle.svg" alt="" aria-hidden="true" />
+          <strong>Need local help?</strong>
+          <span>Your Ireland Agent is just a message away.</span>
+          <button className="button ghost compact" type="button" onClick={() => setTab('research')}>
+            Message Agent <MessageCircle size={14} />
+          </button>
+        </div>
       </aside>
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="kicker">Local-first planner</span>
-            <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
+            {tab === 'dashboard' ? (
+              <p className="dashboard-greeting">Good morning, Thomas! <span aria-hidden="true">👋</span></p>
+            ) : (
+              <>
+                <span className="kicker">Local-first planner</span>
+                <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
+              </>
+            )}
           </div>
           <div className="topbar-meta">
+            <button className="icon-button topbar-bell" type="button" aria-label="Notifications"><Bell size={16} /></button>
             <CurrencyHeaderTile />
             <button className="button ghost compact" onClick={() => setBrowserCollapsed((current) => !current)} aria-label={browserCollapsed ? 'Expand browser view' : 'Collapse browser view'}>
               {browserCollapsed ? <Eye size={15} /> : <EyeOff size={15} />}
@@ -874,6 +1013,7 @@ export default function App() {
           </>
         )}
       </section>
+      <MobileBottomNav activeTab={tab} onSelect={selectTab} onMore={() => setMobileNavOpen((current) => !current)} />
     </main>
   );
 }

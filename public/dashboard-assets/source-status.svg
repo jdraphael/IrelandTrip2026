@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 250" role="img" aria-label="Irish town and cathedral">
+  <rect width="620" height="250" fill="#fbfdfa"/>
+  <path d="M0 199c115-53 205-72 270-55 48 13 91 37 139 30 51-7 120-41 211-101v177H0z" fill="#dfeadf"/>
+  <path d="M0 225c88-34 170-44 246-30 74 13 139 4 194-27 54-30 114-41 180-31v113H0z" fill="#9eb89e"/>
+  <g fill="#ecf2e8" stroke="#78947d" stroke-width="4">
+    <path d="M353 170V88l25-26 27 26v82z"/>
+    <path d="M430 174V52l22-38 22 38v122z"/>
+    <path d="M495 176V72l20-34 20 34v104z"/>
+    <path d="M285 178v-56h50v56z"/>
+    <path d="M246 181v-44h39v44z"/>
+  </g>
+  <path d="M444 55h16M505 74h20M363 91h30" stroke="#42614f" stroke-width="5"/>
+  <g fill="#6f8e72">
+    <circle cx="184" cy="180" r="22"/>
+    <circle cx="210" cy="164" r="18"/>
+    <circle cx="555" cy="181" r="24"/>
+    <circle cx="590" cy="160" r="20"/>
+  </g>
+</svg>

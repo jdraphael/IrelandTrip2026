@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 110" role="img" aria-label="Dingle cliffs thumbnail">
+  <rect width="220" height="110" fill="#b9d9dc"/>
+  <path d="M0 76c44-20 82-24 114-12 38 14 73 10 106-11v57H0z" fill="#5f9874"/>
+  <path d="M120 31c38-12 71-8 100 11v68h-90c-12-31-15-57-10-79z" fill="#6d6030"/>
+  <path d="M147 38c-13 20-17 43-12 67M180 41c-15 20-20 43-15 67" stroke="#312d1d" stroke-width="5" opacity=".45"/>
+  <path d="M0 96c44-15 91-17 140-6" stroke="#ecf4ef" stroke-width="6" opacity=".7"/>
+</svg>

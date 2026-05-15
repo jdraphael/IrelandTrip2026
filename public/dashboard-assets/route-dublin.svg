@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 110" role="img" aria-label="Dublin waterfront thumbnail">
+  <rect width="220" height="110" fill="#b8d7df"/>
+  <path d="M0 65c38-18 74-24 108-16 39 8 76 4 112-14v75H0z" fill="#5d988f"/>
+  <path d="M0 83h220v27H0z" fill="#2f6558"/>
+  <path d="M29 75h136" stroke="#edf3ef" stroke-width="8" stroke-linecap="round"/>
+  <path d="M54 72V40h20v32M86 72V31h25v41M124 72V48h28v24" fill="#e7eadf"/>
+</svg>

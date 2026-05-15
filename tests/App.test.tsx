@@ -39,8 +39,15 @@ describe('Ireland trip app', () => {
     render(<App />);
 
     expect(await screen.findByText('Ireland Family Trip')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Your Ireland adventure is waiting/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Next Up/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Route Snapshot/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Drive Watch/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Source Status/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ask the Agent/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open Checklist/i })).toBeInTheDocument();
     expect(screen.getByText('June 2027')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Itinerary/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Research Agent/i })).toBeInTheDocument();
     expect(await screen.findByText('1 USD = 0.85 EUR')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Budget/i }));
@@ -86,7 +93,7 @@ describe('Ireland trip app', () => {
     await userEvent.click(screen.getByRole('button', { name: /Collapse navigation/i }));
 
     expect(shell).toHaveClass('nav-collapsed');
-    expect(screen.getByRole('button', { name: /^Itinerary$/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Expand navigation/i }));
     expect(shell).not.toHaveClass('nav-collapsed');
@@ -108,11 +115,11 @@ describe('Ireland trip app', () => {
     await screen.findByText('Ireland Family Trip');
 
     await userEvent.click(screen.getByRole('button', { name: /Collapse browser view/i }));
-    expect(screen.queryByText('Planning Health')).not.toBeInTheDocument();
+    expect(screen.queryAllByText('Planning Health')).toHaveLength(0);
     expect(screen.getByText(/Browser view is collapsed/i)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Expand browser view/i }));
-    expect(screen.getByText('Planning Health')).toBeInTheDocument();
+    expect(screen.getAllByText('Planning Health')[0]).toBeInTheDocument();
   });
 
   it('provides a mobile navigation menu that expands and collapses', async () => {
@@ -156,7 +163,7 @@ describe('Ireland trip app', () => {
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
-    await userEvent.click(screen.getByRole('button', { name: /^Map$/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /^Map$/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /Show all stops/i }));
 
     expect(screen.getByRole('heading', { name: /All Trip Stops/i })).toBeInTheDocument();
@@ -180,7 +187,7 @@ describe('Ireland trip app', () => {
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
-    await userEvent.click(screen.getByRole('button', { name: /^Map$/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /^Map$/i })[0]);
 
     const toggle = screen.getByRole('checkbox', { name: /Mouse wheel zoom/i });
     expect(toggle).toBeInTheDocument();
@@ -346,7 +353,7 @@ describe('Ireland trip app', () => {
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
-    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /Open itinerary agent/i }));
     await userEvent.selectOptions(screen.getByLabelText(/Agent focus/i), 'day-3');
     await userEvent.type(screen.getByLabelText(/Itinerary agent prompt/i), 'Add a comment that this is a lighter day.');
@@ -401,7 +408,7 @@ describe('Ireland trip app', () => {
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
-    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /Open itinerary agent/i }));
     await userEvent.type(screen.getByLabelText(/Itinerary agent prompt/i), 'Add a comment to day 1.');
     await userEvent.click(screen.getByRole('button', { name: /Ask Itinerary Agent/i }));
@@ -431,7 +438,7 @@ describe('Ireland trip app', () => {
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
-    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
     await userEvent.click(screen.getByRole('button', { name: /Open itinerary agent/i }));
     await userEvent.type(screen.getByLabelText(/Itinerary agent prompt/i), 'Add a comment to day 1.');
     await userEvent.click(screen.getByRole('button', { name: /Ask Itinerary Agent/i }));
