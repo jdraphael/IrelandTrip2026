@@ -872,6 +872,42 @@ textarea {
   font-weight: 700;
 }
 
+.payment-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(219, 227, 234, 0.82);
+}
+
+.payment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.payment-chip-card {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.payment-chip-cash {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .map-layout {
   display: grid;
   grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);

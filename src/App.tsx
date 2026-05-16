@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Bell, Bot, CalendarDays, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, ExternalLink, Eye, EyeOff, FileCheck2, Home, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Banknote, Bell, Bot, CalendarDays, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, CreditCard, ExternalLink, Eye, EyeOff, FileCheck2, Home, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import { ChecklistDashboard } from './components/ChecklistDashboard';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
-import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
+import type { BookingTask, BudgetItem, DayPlan, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
 
@@ -137,6 +137,39 @@ function SourceChips({ ids, sources }: { ids?: string[]; sources: SourceLink[] }
         <a className="source-chip" href={source.url} target="_blank" rel="noreferrer" key={source.id}>
           {source.title} <ExternalLink size={13} />
         </a>
+      ))}
+    </div>
+  );
+}
+
+function fallbackPaymentTags(day: DayPlan): PaymentTag[] {
+  const text = `${day.title} ${day.base} ${day.route || ''} ${day.notes}`.toLowerCase();
+  const longOrRural = Boolean(day.distanceMiles && day.distanceMiles >= 120) || /dingle|farm|sheepdog|slea|rural|scenic|parking|market|small|drive/.test(text);
+  const minCashEur = longOrRural ? 80 : /kilkenny|cork|galway|kerry|cliffs|connemara|kinsale|blarney|fota/.test(text) ? 60 : 30;
+  const maxCashEur = longOrRural ? 150 : minCashEur === 60 ? 120 : 80;
+  return [
+    { id: 'visa', kind: 'card', label: 'Visa', network: 'Visa', note: 'Recommended primary card' },
+    { id: 'mastercard', kind: 'card', label: 'Mastercard', network: 'Mastercard', note: 'Recommended backup card' },
+    { id: 'cash', kind: 'cash', label: `EUR ${minCashEur}-${maxCashEur}`, minCashEur, maxCashEur, note: 'Recommended daily cash range' }
+  ];
+}
+
+function paymentTagLabel(tag: PaymentTag) {
+  if (tag.kind === 'cash' && tag.minCashEur !== undefined && tag.maxCashEur !== undefined) {
+    return `EUR ${tag.minCashEur}-${tag.maxCashEur}`;
+  }
+  return tag.label;
+}
+
+function PaymentTags({ day }: { day: DayPlan }) {
+  const tags = day.paymentTags && day.paymentTags.length > 0 ? day.paymentTags : fallbackPaymentTags(day);
+  return (
+    <div className="payment-tags" aria-label={`Recommended payment methods for day ${day.day}`}>
+      {tags.map((tag) => (
+        <span className={`payment-chip payment-chip-${tag.kind}`} title={tag.note} aria-label={tag.note ? `${paymentTagLabel(tag)}: ${tag.note}` : paymentTagLabel(tag)} key={tag.id}>
+          {tag.kind === 'cash' ? <Banknote size={15} /> : <CreditCard size={15} />}
+          {paymentTagLabel(tag)}
+        </span>
       ))}
     </div>
   );
@@ -434,6 +467,7 @@ function ItineraryView({
               <button className="button secondary" onClick={() => onSave([{ id: day.id, notes: editing[day.id] ?? day.notes }])}><Save size={15} /> Save Notes</button>
             </div>
             <SourceChips ids={day.sourceIds || day.lodging?.sourceIds || day.stops.flatMap((stop) => stop.sourceIds || [])} sources={sources} />
+            <PaymentTags day={day} />
           </div>
         </article>
       ))}
@@ -522,7 +556,8 @@ function itineraryAgentContext(days: DayPlan[], selectedDayId: string) {
         base: selectedDay.base,
         route: selectedDay.route,
         notes: selectedDay.notes,
-        stops: selectedDay.stops.map((stop) => ({ id: stop.id, name: stop.name, kind: stop.kind }))
+        stops: selectedDay.stops.map((stop) => ({ id: stop.id, name: stop.name, kind: stop.kind })),
+        paymentTags: selectedDay.paymentTags || fallbackPaymentTags(selectedDay)
       }
     : undefined;
 
@@ -533,6 +568,7 @@ function itineraryAgentContext(days: DayPlan[], selectedDayId: string) {
       : 'Selected itinerary day: Whole itinerary. If the user mentions a day number, target that day.',
     'The user may ask questions or ask for itinerary edits. Saved-data edits must be returned as reviewable itinerary drafts, never direct mutations.',
     'If the user asks to add a comment, reminder, pacing note, or family note to a day, create an itinerary patch draft that updates that day notes while preserving useful existing notes.',
+    'If a draft changes destinations, adds or removes days, or rewrites itinerary days, include refreshed paymentTags with Visa, Mastercard, and a daily EUR cash range for each affected day.',
     selectedDayDetail
       ? `Selected day details: ${JSON.stringify(selectedDayDetail)}`
       : 'No single day is selected. Use explicit day numbers in the prompt to choose a day.',
