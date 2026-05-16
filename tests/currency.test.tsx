@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrencyHeaderTile } from '../src/components/CurrencyHeaderTile';
@@ -146,6 +146,32 @@ describe('CurrencyHeaderTile', () => {
     expect(await screen.findByText('1 USD = 0.85 EUR')).toBeInTheDocument();
     expect(screen.getByText(/Updated just now/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open currency calculator/i })).toBeInTheDocument();
+  });
+
+  it('opens the calculator from the navigation tool variant', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+      date: '2026-05-14',
+      base: 'USD',
+      quote: 'EUR',
+      rate: 0.85378
+    })));
+
+    render(<CurrencyHeaderTile variant="nav" />);
+    await screen.findByText('1 USD = 0.85 EUR');
+    await userEvent.click(screen.getByRole('button', { name: /Travel conversion tool/i }));
+
+    expect(screen.getByRole('dialog', { name: /USD to EUR/i })).toBeInTheDocument();
+  });
+
+  it('opens the navigation module even before a live rate is available', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network down')));
+
+    render(<CurrencyHeaderTile variant="nav" />);
+    await userEvent.click(screen.getByRole('button', { name: /Travel conversion tool/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /Travel conversion/i });
+    expect(dialog).toBeInTheDocument();
+    expect(await within(dialog).findByText(/Rate unavailable/i)).toBeInTheDocument();
   });
 
   it('refreshes the live rate every 15 minutes', async () => {

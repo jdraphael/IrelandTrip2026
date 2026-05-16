@@ -178,6 +178,35 @@ nav {
   color: white;
 }
 
+.currency-nav-button {
+  width: 100%;
+  min-width: 0;
+}
+
+.currency-nav-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.currency-nav-copy span,
+.currency-nav-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currency-nav-copy small {
+  color: rgba(220, 233, 223, 0.72);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.currency-nav-button-loading {
+  cursor: default;
+}
+
 .mobile-nav-drawer,
 .mobile-menu-button {
   display: none;
@@ -553,6 +582,11 @@ nav {
   backdrop-filter: blur(8px);
 }
 
+.currency-module-backdrop {
+  place-items: start;
+  padding: 96px 20px 20px 300px;
+}
+
 .currency-modal {
   display: grid;
   gap: 18px;
@@ -562,6 +596,10 @@ nav {
   padding: 20px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.currency-module {
+  width: min(410px, calc(100vw - 32px));
 }
 
 .currency-modal-head {
@@ -646,6 +684,26 @@ nav {
   display: grid;
   gap: 5px;
   font-weight: 650;
+}
+
+.currency-module-empty {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--surface-soft);
+}
+
+.currency-module-empty strong,
+.currency-module-empty p {
+  margin: 0;
+}
+
+.currency-module-empty p {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.4;
 }
 
 .dashboard-grid {
@@ -1601,6 +1659,11 @@ textarea {
     white-space: normal;
   }
 
+  .currency-module-backdrop {
+    place-items: start center;
+    padding: 92px 16px 16px;
+  }
+
   .dashboard-grid,
   .research-layout,
   .map-layout {
@@ -2263,6 +2326,10 @@ textarea {
     grid-template-columns: 88px minmax(0, 1fr);
   }
 
+  .nav-collapsed .currency-module-backdrop {
+    padding-left: 108px;
+  }
+
   .dashboard-shell.nav-collapsed .sidebar-family-card,
   .dashboard-shell.nav-collapsed .sidebar-help-card {
     display: none;
@@ -2340,6 +2407,10 @@ textarea {
 
   .dashboard-shell .mobile-nav-drawer button {
     color: #153229;
+  }
+
+  .dashboard-shell .mobile-nav-drawer .currency-nav-copy small {
+    color: #577066;
   }
 
   .sidebar-family-card,

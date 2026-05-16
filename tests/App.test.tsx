@@ -441,9 +441,10 @@ describe('Ireland trip app', () => {
     expect(screen.getByText('Jun 18-30, 2027')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Research Agent/i })).toBeInTheDocument();
-    expect(await screen.findByText('1 USD = 0.85 EUR')).toBeInTheDocument();
+    const primaryNav = screen.getByLabelText('Primary navigation');
+    expect(await within(primaryNav).findByText('1 USD = 0.85 EUR')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Budget/i }));
-    expect(screen.getByText('1 USD = 0.85 EUR')).toBeInTheDocument();
+    expect(within(primaryNav).getByText('1 USD = 0.85 EUR')).toBeInTheDocument();
   });
 
   it('renders payment guidance chips at the bottom of itinerary day cards', async () => {
@@ -527,6 +528,22 @@ describe('Ireland trip app', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Expand navigation/i }));
     expect(shell).not.toHaveClass('nav-collapsed');
+  });
+
+  it('moves the travel conversion tool into the left navigation as a pop-out module', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp());
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    const primaryNav = screen.getByLabelText('Primary navigation');
+    const conversionTool = await within(primaryNav).findByRole('button', { name: /Travel conversion tool/i });
+
+    expect(screen.queryByRole('button', { name: /Open currency calculator/i })).not.toBeInTheDocument();
+    await userEvent.click(conversionTool);
+
+    const dialog = await screen.findByRole('dialog', { name: /USD to EUR/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/Travel conversion/i)).toBeInTheDocument();
   });
 
   it('collapses and expands the browser workspace view', async () => {
