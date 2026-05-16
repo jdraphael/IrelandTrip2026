@@ -935,24 +935,30 @@ export default function App() {
   if (authRequired && !authenticated) {
     return (
       <main className="login-screen">
-        <section className="login-card">
-          <BrandMark />
-          <h1>Ireland Trip Agent</h1>
-          <p>Enter the family passcode to open the planner.</p>
-          <input
-            type="password"
-            value={passcode}
-            onChange={(event) => setPasscode(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void login();
-            }}
-            placeholder="Family passcode"
-            aria-label="Family passcode"
-          />
-          {error && <p className="warning">{error}</p>}
-          <button className="button primary full" onClick={login} disabled={!passcode.trim()}>
-            <ShieldCheck size={17} /> Unlock Planner
-          </button>
+        <img className="login-reference-image login-reference-image-desktop" src="/login-hero-reference.png" alt="" aria-hidden="true" draggable="false" />
+        <img className="login-reference-image login-reference-image-mobile" src="/login-hero-mobile-reference.png" alt="" aria-hidden="true" draggable="false" />
+        <section className="login-passcode-panel" aria-labelledby="login-title">
+          <h1 id="login-title" className="sr-only">Ireland Trip Agent</h1>
+          <p className="sr-only">Enter the family passcode to open the planner.</p>
+          <div className="login-passcode-row">
+            <label className="login-passcode-field">
+              <span>Family passcode</span>
+              <input
+                type="password"
+                value={passcode}
+                onChange={(event) => setPasscode(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void login();
+                }}
+                placeholder="Enter passcode"
+                aria-label="Family passcode"
+              />
+            </label>
+            <button className="button login-unlock-button" onClick={login} disabled={!passcode.trim()}>
+              <ShieldCheck size={17} /> Unlock Planner
+            </button>
+          </div>
+          {error && <p className="login-warning" role="alert">{error}</p>}
         </section>
       </main>
     );
