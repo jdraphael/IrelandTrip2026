@@ -12,6 +12,8 @@ class ConfigurationErrorDatabase implements TripDatabase {
 
   getTrip() { return this.fail(); }
   saveTrip() { return this.fail(); }
+  getFamilyMembers() { return this.fail(); }
+  saveFamilyMembers() { return this.fail(); }
   getItinerary() { return this.fail(); }
   saveItinerary() { return this.fail(); }
   getBudget() { return this.fail(); }

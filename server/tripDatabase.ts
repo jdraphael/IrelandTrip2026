@@ -1,8 +1,10 @@
-import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
+import type { BookingTask, BudgetItem, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
 
 export interface TripDatabase {
   getTrip(): Promise<Trip>;
   saveTrip(trip: Trip): Promise<Trip>;
+  getFamilyMembers(): Promise<FamilyMember[]>;
+  saveFamilyMembers(members: FamilyMember[]): Promise<FamilyMember[]>;
   getItinerary(): Promise<DayPlan[]>;
   saveItinerary(itinerary: DayPlan[]): Promise<DayPlan[]>;
   getBudget(): Promise<BudgetItem[]>;

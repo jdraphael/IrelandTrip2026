@@ -20,6 +20,14 @@ export interface Trip {
   updatedAt: string;
 }
 
+export interface FamilyMember {
+  id: string;
+  name: string;
+  role: 'parent' | 'child';
+  avatarKey?: string;
+  taskColor?: string;
+}
+
 export interface Stop {
   id: string;
   name: string;

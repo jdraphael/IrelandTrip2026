@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { TasksResponse } from '../src/api';
@@ -20,6 +20,14 @@ const tripResponse = {
   updatedAt: '2026-05-10T00:00:00Z'
 };
 
+const familyMembersResponse = [
+  { id: 'justin', name: 'Justin', role: 'parent' as const, avatarKey: 'dad', taskColor: '#0B5D3B' },
+  { id: 'krissy', name: 'Krissy', role: 'parent' as const, avatarKey: 'mom', taskColor: '#5F8B4C' },
+  { id: 'lyla', name: 'Lyla', role: 'child' as const, avatarKey: 'lyla', taskColor: '#D9B95B' },
+  { id: 'grace', name: 'Grace', role: 'child' as const, avatarKey: 'grace', taskColor: '#C86B25' },
+  { id: 'everly', name: 'Everly', role: 'child' as const, avatarKey: 'everly', taskColor: '#2F7D67' }
+];
+
 describe('Ireland trip app', () => {
   const richTasksResponse: TasksResponse = {
     items: [
@@ -37,7 +45,7 @@ describe('Ireland trip app', () => {
         actionLabel: 'View Options',
         subtasksDone: 0,
         subtasksTotal: 2,
-        assignedTo: ['Thomas', 'Laura']
+        assignedTo: ['Justin', 'Krissy']
       },
       {
         id: 'task-passports',
@@ -78,6 +86,8 @@ describe('Ireland trip app', () => {
       if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members') && init?.method === 'PATCH') return Promise.resolve(Response.json(JSON.parse(init.body as string)));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
         { id: 'day-1', day: 1, title: 'Travel day', dateLabel: 'June 2027', base: 'In flight', stops: [{ id: 'dub', name: 'Dublin Airport', kind: 'airport', latitude: 53, longitude: -6 }], notes: 'Go' },
         { id: 'day-2', day: 2, title: 'Dublin', dateLabel: 'June 2027', base: 'Dublin', stops: [], notes: 'Dublin' },
@@ -120,6 +130,28 @@ describe('Ireland trip app', () => {
     expect(screen.getByRole('heading', { name: /Category Progress/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /AI Travel Assistant/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Family Progress/i })).toBeInTheDocument();
+    expect(screen.getByText(/Justin \(You\)/i)).toBeInTheDocument();
+  });
+
+  it('edits checklist travelers through the family members API', async () => {
+    const fetchMock = stubChecklistApp();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    const travelerTrigger = screen.getAllByText(/5 Travelers/i).find((element) => element.closest('summary'));
+    expect(travelerTrigger).toBeTruthy();
+    fireEvent.click(travelerTrigger!.closest('summary')!);
+    const justinInput = await screen.findByLabelText(/Traveler name for Justin/i);
+    await userEvent.clear(justinInput);
+    await userEvent.type(justinInput, 'Justin Raphael');
+    await userEvent.click(screen.getByRole('button', { name: /Save travelers/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/family-members', expect.objectContaining({
+      method: 'PATCH',
+      body: expect.stringContaining('Justin Raphael')
+    }));
   });
 
   it('filters checklist cards by category', async () => {
@@ -206,6 +238,7 @@ describe('Ireland trip app', () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
         {
           id: 'day-5',

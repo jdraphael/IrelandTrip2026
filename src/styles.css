@@ -227,6 +227,163 @@ nav {
   align-items: center;
 }
 
+.dashboard-greeting.compact {
+  margin-bottom: 4px;
+  font-size: .86rem;
+}
+
+.traveler-menu {
+  position: relative;
+  z-index: 40;
+}
+
+.traveler-menu > summary {
+  list-style: none;
+}
+
+.traveler-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.traveler-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  color: #182b24;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 10px 28px rgba(36, 50, 61, 0.12);
+  backdrop-filter: blur(16px);
+  cursor: pointer;
+  font-size: .86rem;
+  font-weight: 850;
+}
+
+.traveler-menu-trigger.compact {
+  min-height: 36px;
+  padding: 0 12px;
+  border-color: var(--line, #d9e2dc);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 22px rgba(20, 44, 34, 0.08);
+  font-size: .78rem;
+  text-transform: none;
+}
+
+.traveler-menu[open] .traveler-menu-trigger svg:last-child {
+  transform: rotate(180deg);
+}
+
+.traveler-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid rgba(11, 93, 59, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(253, 253, 252, 0.94), rgba(247, 244, 238, 0.92)),
+    url("/dashboard-assets/checklist/glass-overlay-texture.webp") center/cover;
+  box-shadow: 0 24px 70px rgba(18, 36, 30, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.traveler-menu-head {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.traveler-menu-head strong {
+  color: #0b3d2b;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+}
+
+.traveler-menu-head span {
+  color: #5c6a63;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.traveler-editor-list {
+  display: grid;
+  gap: 8px;
+}
+
+.traveler-editor-row,
+.traveler-add-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 90px;
+  gap: 8px;
+  align-items: center;
+}
+
+.traveler-avatar,
+.family-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: #fff;
+  background: #0b5d3b;
+  font-size: .78rem;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(11, 93, 59, 0.18);
+}
+
+.traveler-editor-row input,
+.traveler-editor-row select,
+.traveler-add-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid rgba(36, 50, 61, 0.12);
+  border-radius: 10px;
+  color: #14251f;
+  background: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 760;
+  padding: 0 10px;
+}
+
+.traveler-add-row {
+  grid-template-columns: minmax(0, 1fr) 40px;
+  margin-top: 10px;
+}
+
+.traveler-add-row button,
+.traveler-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 11px;
+  color: #fff8e9;
+  background: #0b5d3b;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.traveler-add-row button:disabled,
+.traveler-save-button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+.traveler-save-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
 .browser-collapsed {
   display: grid;
   place-items: center;
@@ -2362,6 +2519,7 @@ textarea {
   min-height: 100vh;
   background:
     radial-gradient(circle at 74% 5%, rgba(217, 185, 91, 0.22), transparent 270px),
+    url("/dashboard-assets/checklist/dashboard-background-texture.webp") center/cover fixed,
     linear-gradient(140deg, #f7f4ee 0%, #fdfdfc 45%, #edf3ef 100%);
   color: #24323d;
 }
@@ -2374,6 +2532,7 @@ textarea {
   background:
     radial-gradient(circle at 12% 100%, rgba(217, 185, 91, 0.2), transparent 145px),
     radial-gradient(circle at 80% 10%, rgba(95, 139, 76, 0.28), transparent 190px),
+    url("/dashboard-assets/checklist/sidebar-celtic-texture.webp") center/cover,
     linear-gradient(155deg, #003523 0%, #064b34 54%, #001f19 100%);
   box-shadow: 18px 0 44px rgba(9, 44, 33, 0.18);
 }
@@ -2385,7 +2544,8 @@ textarea {
   border-radius: 18px;
   background:
     radial-gradient(circle at 22px 28px, transparent 11px, rgba(217, 185, 91, 0.22) 12px, transparent 14px),
-    radial-gradient(circle at 58px 28px, transparent 11px, rgba(217, 185, 91, 0.18) 12px, transparent 14px);
+    radial-gradient(circle at 58px 28px, transparent 11px, rgba(217, 185, 91, 0.18) 12px, transparent 14px),
+    url("/dashboard-assets/checklist/sidebar-bottom-shamrocks.webp") center/cover;
   opacity: .65;
 }
 
@@ -2451,7 +2611,7 @@ textarea {
   height: 74px;
   border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
-  background: url("/dashboard-assets/checklist/family.svg") center/cover;
+  background: url("/dashboard-assets/checklist/family-hub-card.webp") center/cover;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
@@ -2507,7 +2667,7 @@ textarea {
   padding: 34px 360px 28px 40px;
   background:
     linear-gradient(90deg, rgba(247, 244, 238, 0.96) 0%, rgba(247, 244, 238, 0.82) 32%, rgba(247, 244, 238, 0.18) 62%, rgba(247, 244, 238, 0.02) 100%),
-    url("/dashboard-assets/checklist/hero-cliffs.svg") center/cover no-repeat;
+    url("/dashboard-assets/checklist/hero-cliffs-of-moher-dashboard.webp") center/cover no-repeat;
   box-shadow: 0 18px 60px rgba(36, 50, 61, 0.12);
 }
 
@@ -2708,8 +2868,10 @@ textarea {
   padding: 20px 28px;
   color: #fff4cf;
   background:
-    radial-gradient(circle at 94% 18%, rgba(217, 185, 91, 0.2), transparent 58px),
-    linear-gradient(135deg, rgba(3, 60, 42, 0.96), rgba(0, 45, 34, 0.94));
+    linear-gradient(135deg, rgba(3, 60, 42, 0.94), rgba(0, 45, 34, 0.9)),
+    radial-gradient(circle at 94% 18%, rgba(217, 185, 91, 0.24), transparent 58px),
+    url("/dashboard-assets/checklist/countdown-widget-bg.webp") center/cover,
+    #042d22;
   box-shadow: 0 20px 50px rgba(5, 40, 30, 0.28);
   backdrop-filter: blur(18px);
 }
@@ -3123,6 +3285,18 @@ textarea {
 
 .checklist-widget {
   padding: 18px;
+}
+
+.checklist-widget:first-child {
+  background:
+    linear-gradient(145deg, rgba(255, 253, 248, 0.9), rgba(247, 244, 238, 0.84)),
+    url("/dashboard-assets/checklist/widget-category-progress.webp") center/cover;
+}
+
+.checklist-widget:nth-child(3) {
+  background:
+    linear-gradient(145deg, rgba(255, 253, 248, 0.9), rgba(247, 244, 238, 0.82)),
+    url("/dashboard-assets/checklist/widget-family-progress.webp") center/cover;
 }
 
 .checklist-widget h2,

@@ -1,4 +1,4 @@
-import type { BookingTask, BudgetItem, BudgetSummary, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, SourceSummary, TaskSummary, Trip } from './types';
+import type { BookingTask, BudgetItem, BudgetSummary, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, SourceSummary, TaskSummary, Trip } from './types';
 
 export interface BudgetResponse {
   items: BudgetItem[];
@@ -44,6 +44,8 @@ export const api = {
   login: (passcode: string) => request<SessionResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify({ passcode }) }),
   logout: () => request<SessionResponse>('/api/auth/logout', { method: 'POST' }),
   trip: () => request<Trip>('/api/trip'),
+  familyMembers: () => request<FamilyMember[]>('/api/family-members'),
+  saveFamilyMembers: (members: FamilyMember[]) => request<FamilyMember[]>('/api/family-members', { method: 'PATCH', body: JSON.stringify(members) }),
   itinerary: () => request<DayPlan[]>('/api/itinerary'),
   saveItinerary: (days: Partial<DayPlan>[]) => request<DayPlan[]>('/api/itinerary', { method: 'PATCH', body: JSON.stringify(days) }),
   budget: () => request<BudgetResponse>('/api/budget'),

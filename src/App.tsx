@@ -5,13 +5,16 @@ import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import { ChecklistDashboard } from './components/ChecklistDashboard';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
+import { TravelerMenu } from './components/TravelerMenu';
 import { dashboardAssets, itineraryThumbnailAssets } from './dashboardAssets';
-import type { BookingTask, BudgetItem, DayPlan, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
+import { getTimeOfDayGreeting } from './lib/greeting';
+import type { BookingTask, BudgetItem, DayPlan, FamilyMember, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
 
 interface AppState {
   trip?: Trip;
+  familyMembers?: FamilyMember[];
   itinerary: DayPlan[];
   budget?: BudgetResponse;
   tasks?: TasksResponse;
@@ -872,16 +875,19 @@ export default function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const greeting = getTimeOfDayGreeting();
+
   const refresh = async () => {
-    const [trip, itinerary, budget, tasks, sources, research] = await Promise.all([
+    const [trip, familyMembers, itinerary, budget, tasks, sources, research] = await Promise.all([
       api.trip(),
+      api.familyMembers().catch(() => []),
       api.itinerary(),
       api.budget(),
       api.tasks(),
       api.sources(),
       api.researchHistory()
     ]);
-    setState({ trip, itinerary, budget, tasks, sources, research });
+    setState({ trip, familyMembers, itinerary, budget, tasks, sources, research });
     setSelectedDayId((current) => itinerary.some((day) => day.id === current) ? current : itinerary[0]?.id || '');
   };
 
@@ -938,6 +944,15 @@ export default function App() {
   const saveTasks = async (items: Partial<BookingTask>[]) => {
     const tasks = await api.saveTasks(items);
     setState((current) => ({ ...current, tasks }));
+  };
+
+  const saveFamilyMembers = async (members: FamilyMember[]) => {
+    const familyMembers = await api.saveFamilyMembers(members);
+    setState((current) => ({
+      ...current,
+      familyMembers,
+      trip: current.trip ? { ...current.trip, travelers: familyMembers.length } : current.trip
+    }));
   };
 
   const askResearch = async (question: string, deep: boolean, context?: string) => {
@@ -1030,11 +1045,11 @@ export default function App() {
         <div className="sidebar-family-card">
           <div className="family-avatar-stack" aria-hidden="true">
             <span>J</span>
-            <span>T</span>
+            <span>K</span>
             <span>3</span>
           </div>
           <div>
-            <strong>The Johnson Family</strong>
+            <strong>The Raphael Family</strong>
             <span>Family Pass: 7D43K2</span>
           </div>
           <ChevronDown size={15} />
@@ -1052,10 +1067,10 @@ export default function App() {
         {tab !== 'tasks' && <header className="topbar">
           <div>
             {tab === 'dashboard' ? (
-              <p className="dashboard-greeting">Good morning, Thomas! <span aria-hidden="true">👋</span></p>
+              <p className="dashboard-greeting">{greeting}! <span aria-hidden="true">👋</span></p>
             ) : (
               <>
-                <span className="kicker">Local-first planner</span>
+                <p className="dashboard-greeting compact">{greeting}</p>
                 <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
               </>
             )}
@@ -1068,7 +1083,7 @@ export default function App() {
               {browserCollapsed ? 'Expand View' : 'Collapse View'}
             </button>
             <StatusPill tone="good">June 2027</StatusPill>
-            <StatusPill>{state.trip?.travelers || 5} travelers</StatusPill>
+            <TravelerMenu members={state.familyMembers} onSave={saveFamilyMembers} compact />
             {authRequired && <button className="button ghost compact" onClick={logout}>Log out</button>}
           </div>
         </header>}
@@ -1088,7 +1103,7 @@ export default function App() {
             {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
             {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
             {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
-            {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} onSave={saveTasks} />}
+            {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} />}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
           </>
         )}

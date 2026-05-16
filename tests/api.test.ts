@@ -40,11 +40,30 @@ describe('trip agent API', () => {
     const itinerary = await request(app).get('/api/itinerary').expect(200);
     const budget = await request(app).get('/api/budget').expect(200);
     const tasks = await request(app).get('/api/tasks').expect(200);
+    const familyMembers = await request(app).get('/api/family-members').expect(200);
 
     expect(trip.body.year).toBe(2027);
+    expect(familyMembers.body.map((member: { name: string }) => member.name)).toEqual(['Justin', 'Krissy', 'Lyla', 'Grace', 'Everly']);
     expect(itinerary.body.length).toBeGreaterThan(10);
     expect(budget.body.summary.target).toBe(15000);
     expect(tasks.body.summary.open).toBeGreaterThan(0);
+  });
+
+  it('saves editable family travelers', async () => {
+    const db = createTestDatabase();
+    const app = createApp({ db });
+
+    await request(app)
+      .patch('/api/family-members')
+      .send([
+        { id: 'justin', name: 'Justin Raphael', role: 'parent', avatarKey: 'dad', taskColor: '#0B5D3B' },
+        { id: 'krissy', name: 'Krissy', role: 'parent', avatarKey: 'mom', taskColor: '#5F8B4C' }
+      ])
+      .expect(200);
+
+    const familyMembers = await request(app).get('/api/family-members').expect(200);
+    expect(familyMembers.body).toHaveLength(2);
+    expect(familyMembers.body[0]).toMatchObject({ id: 'justin', name: 'Justin Raphael', role: 'parent' });
   });
 
   it('returns a clear research configuration message when no OpenAI key is configured', async () => {

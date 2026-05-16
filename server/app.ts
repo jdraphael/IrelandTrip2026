@@ -19,6 +19,14 @@ interface CreateAppOptions {
 }
 
 const patchTripSchema = z.record(z.string(), z.unknown());
+const familyMemberSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(60),
+  role: z.enum(['parent', 'child']),
+  avatarKey: z.string().optional(),
+  taskColor: z.string().optional()
+});
+const familyMembersSchema = z.array(familyMemberSchema).min(1).max(12);
 const researchSchema = z.object({ question: z.string().min(3), deep: z.boolean().optional(), context: z.string().max(4000).optional() });
 const sourceCheckSchema = z.object({ url: z.string().url(), title: z.string().optional() });
 const loginSchema = z.object({ passcode: z.string().min(1) });
@@ -116,6 +124,20 @@ export function createApp({
     const patch = patchTripSchema.parse(request.body);
     const trip = await db.saveTrip({ ...(await db.getTrip()), ...patch, updatedAt: new Date().toISOString() });
     response.json(trip);
+  }));
+
+  app.get('/api/family-members', asyncRoute(async (_request, response) => {
+    response.json(await db.getFamilyMembers());
+  }));
+
+  app.patch('/api/family-members', asyncRoute(async (request, response) => {
+    const members = familyMembersSchema.parse(request.body);
+    const normalized = members.map((member) => ({
+      ...member,
+      id: member.id.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '') || crypto.randomUUID(),
+      name: member.name.trim()
+    }));
+    response.json(await db.saveFamilyMembers(normalized));
   }));
 
   app.get('/api/itinerary', asyncRoute(async (_request, response) => {

@@ -19,7 +19,9 @@ import {
   Users
 } from 'lucide-react';
 import type { TasksResponse } from '../api';
-import type { BookingTask, DayPlan, Trip } from '../types';
+import { TravelerMenu, fallbackMembers } from './TravelerMenu';
+import { getTimeOfDayGreeting } from '../lib/greeting';
+import type { BookingTask, DayPlan, FamilyMember, Trip } from '../types';
 
 type ChecklistCategory = NonNullable<BookingTask['displayCategory']>;
 
@@ -27,7 +29,9 @@ interface ChecklistDashboardProps {
   trip?: Trip;
   itinerary: DayPlan[];
   tasks?: TasksResponse;
+  familyMembers?: FamilyMember[];
   onSave: (items: Partial<BookingTask>[]) => Promise<void>;
+  onSaveFamilyMembers: (members: FamilyMember[]) => Promise<void>;
 }
 
 const categories: ChecklistCategory[] = ['Flights & Travel', 'Lodging & Stays', 'Driving in Ireland', 'Family Prep', 'Experiences'];
@@ -41,23 +45,23 @@ const categoryIcons: Record<ChecklistCategory, typeof Plane> = {
 };
 
 const imageByKey: Record<string, string> = {
-  flights: '/dashboard-assets/checklist/thumb-flights.svg',
-  passports: '/dashboard-assets/checklist/thumb-passports.svg',
-  'fare-alerts': '/dashboard-assets/checklist/thumb-fare-alerts.svg',
-  lodging: '/dashboard-assets/checklist/thumb-lodging.svg',
-  driving: '/dashboard-assets/checklist/thumb-driving.svg',
-  packing: '/dashboard-assets/checklist/thumb-packing.svg',
-  documents: '/dashboard-assets/checklist/thumb-documents.svg',
-  experiences: '/dashboard-assets/checklist/thumb-experiences.svg'
+  flights: '/dashboard-assets/checklist/checklist-flight-booking.webp',
+  passports: '/dashboard-assets/checklist/checklist-passports.webp',
+  'fare-alerts': '/dashboard-assets/checklist/checklist-fare-alerts.webp',
+  lodging: '/dashboard-assets/checklist/checklist-lodging.webp',
+  driving: '/dashboard-assets/checklist/checklist-driving.webp',
+  packing: '/dashboard-assets/checklist/checklist-family-prep.webp',
+  documents: '/dashboard-assets/checklist/checklist-family-prep.webp',
+  experiences: '/dashboard-assets/checklist/checklist-experiences.webp'
 };
 
 const routeImages: Record<string, string> = {
-  LEX: '/dashboard-assets/checklist/thumb-flights.svg',
-  Dublin: '/dashboard-assets/route-dublin.svg',
-  Kilkenny: '/dashboard-assets/route-kilkenny.svg',
-  Cork: '/dashboard-assets/route-cork.svg',
-  Dingle: '/dashboard-assets/route-dingle.svg',
-  Galway: '/dashboard-assets/route-galway.svg'
+  LEX: '/dashboard-assets/checklist/checklist-flight-booking.webp',
+  Dublin: '/dashboard-assets/checklist/timeline-dublin.webp',
+  Kilkenny: '/dashboard-assets/checklist/timeline-kilkenny.webp',
+  Cork: '/dashboard-assets/checklist/timeline-cork.webp',
+  Dingle: '/dashboard-assets/checklist/timeline-dingle.webp',
+  Galway: '/dashboard-assets/checklist/timeline-galway.webp'
 };
 
 function derivedCategory(task: BookingTask): ChecklistCategory {
@@ -124,27 +128,29 @@ function ProgressBar({ value, tone = 'green' }: { value: number; tone?: 'green' 
   );
 }
 
-function ChecklistHero({ trip, items, onJumpToNext }: { trip?: Trip; items: ReturnType<typeof normalizeTask>[]; onJumpToNext: () => void }) {
+function ChecklistHero({ trip, items, familyMembers, onSaveFamilyMembers, onJumpToNext }: { trip?: Trip; items: ReturnType<typeof normalizeTask>[]; familyMembers?: FamilyMember[]; onSaveFamilyMembers: (members: FamilyMember[]) => Promise<void>; onJumpToNext: () => void }) {
   const done = items.filter((task) => task.status === 'done').length;
   const overall = percent(done, items.length);
   const openCount = items.filter((task) => task.status === 'open').length;
   const nextTask = items.find((task) => task.id === 'task-book-flights' && task.status !== 'done') || [...items].filter((task) => task.status === 'open').sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const greeting = getTimeOfDayGreeting();
+  const travelerCount = familyMembers?.length || trip?.travelers || 5;
 
   return (
     <section className="checklist-hero">
       <div className="checklist-hero-toolbar" aria-label="Trip controls">
         <button className="checklist-icon-button" type="button" aria-label="Notifications"><Bell size={17} /></button>
         <button className="checklist-control" type="button">June 2027 <ChevronDown size={15} /></button>
-        <button className="checklist-control" type="button"><Users size={16} /> {trip?.travelers || 5} Travelers <ChevronDown size={15} /></button>
+        <TravelerMenu members={familyMembers} onSave={onSaveFamilyMembers} className="checklist-traveler-menu" />
         <button className="checklist-shamrock" type="button" aria-label="Ireland trip magic">♣</button>
       </div>
       <div className="checklist-hero-copy">
-        <p className="checklist-greeting">Good morning, Thomas! <span aria-hidden="true">♣</span></p>
+        <p className="checklist-greeting">{greeting}. <span aria-hidden="true">♣</span></p>
         <h1>Ireland Family Adventure</h1>
         <p className="checklist-hero-subtitle">Let’s get everything ready for an unforgettable trip together.</p>
         <div className="checklist-trip-meta">
           <span><CalendarDays size={16} /> {trip?.month || 'June'} {trip?.year || 2027}</span>
-          <span><Users size={16} /> {trip?.travelers || 5} Travelers</span>
+          <span><Users size={16} /> {travelerCount} Travelers</span>
           <span><Plane size={16} /> {trip?.origin || 'LEX'} → {trip?.destination || 'DUB'}</span>
         </div>
         <div className="checklist-hero-progress">
@@ -261,7 +267,12 @@ function ChecklistTaskCard({ task, onSave }: { task: ReturnType<typeof normalize
   );
 }
 
-function RightWidgets({ items }: { items: ReturnType<typeof normalizeTask>[] }) {
+function taskAssignedToMember(task: ReturnType<typeof normalizeTask>, member: FamilyMember) {
+  const names = task.assignedTo || [];
+  return names.some((name) => name.toLowerCase() === member.name.toLowerCase() || name.toLowerCase() === member.id.toLowerCase());
+}
+
+function RightWidgets({ items, familyMembers }: { items: ReturnType<typeof normalizeTask>[]; familyMembers?: FamilyMember[] }) {
   const categoryProgress = categories.map((category) => {
     const categoryItems = items.filter((task) => task.displayCategory === category);
     return {
@@ -270,13 +281,16 @@ function RightWidgets({ items }: { items: ReturnType<typeof normalizeTask>[] }) 
       tone: category === 'Family Prep' ? 'orange' : category === 'Driving in Ireland' ? 'gold' : 'green'
     } as const;
   });
-  const family = [
-    { name: 'Thomas (You)', value: 75 },
-    { name: 'Laura', value: 60 },
-    { name: 'Emma', value: 40 },
-    { name: 'Sophia', value: 35 },
-    { name: 'Olivia', value: 50 }
-  ];
+  const members = familyMembers?.length ? familyMembers : fallbackMembers;
+  const family = members.map((member, index) => {
+    const assigned = items.filter((task) => taskAssignedToMember(task, member));
+    const base = [75, 60, 40, 35, 50][index] || 30;
+    return {
+      name: index === 0 ? `${member.name} (You)` : member.name,
+      value: assigned.length ? percent(assigned.filter((task) => task.status === 'done').length, assigned.length) : base,
+      color: member.taskColor || '#0B5D3B'
+    };
+  });
 
   return (
     <aside className="checklist-widget-rail">
@@ -297,7 +311,7 @@ function RightWidgets({ items }: { items: ReturnType<typeof normalizeTask>[] }) 
         <h2><Sparkles size={18} /> AI Travel Assistant</h2>
         <p>Rain expected in Galway during your stay. Add waterproof jackets to your packing list?</p>
         <button className="checklist-outline-button" type="button">View Packing List <span aria-hidden="true">→</span></button>
-        <img src="/dashboard-assets/checklist/assistant-rain.svg" alt="" aria-hidden="true" />
+        <img src="/dashboard-assets/checklist/widget-ai-rain-jackets.webp" alt="" aria-hidden="true" />
       </section>
       <section className="checklist-widget">
         <h2><Users size={18} /> Family Progress</h2>
@@ -305,7 +319,7 @@ function RightWidgets({ items }: { items: ReturnType<typeof normalizeTask>[] }) 
         <div className="family-progress-list">
           {family.map((member, index) => (
             <div className="family-progress-row" key={member.name}>
-              <span className="family-dot">{member.name.charAt(0)}</span>
+              <span className="family-dot" style={{ background: member.color }}>{member.name.charAt(0)}</span>
               <span>{member.name}</span>
               <ProgressBar value={member.value} tone={member.value < 40 ? 'orange' : 'green'} />
               <strong>{member.value}%</strong>
@@ -314,7 +328,7 @@ function RightWidgets({ items }: { items: ReturnType<typeof normalizeTask>[] }) 
         </div>
       </section>
       <section className="checklist-footer-card">
-        <img src="/dashboard-assets/checklist/castle-footer.svg" alt="" aria-hidden="true" />
+        <img src="/dashboard-assets/checklist/widget-footer-castle.webp" alt="" aria-hidden="true" />
         <div>
           <h2>Planning made magical</h2>
           <p>Every check brings your family closer to adventure.</p>
@@ -324,7 +338,7 @@ function RightWidgets({ items }: { items: ReturnType<typeof normalizeTask>[] }) 
   );
 }
 
-export function ChecklistDashboard({ trip, itinerary, tasks, onSave }: ChecklistDashboardProps) {
+export function ChecklistDashboard({ trip, itinerary, tasks, familyMembers, onSave, onSaveFamilyMembers }: ChecklistDashboardProps) {
   const [activeFilter, setActiveFilter] = useState<'All Items' | ChecklistCategory>('All Items');
   const items = useMemo(() => (tasks?.items || []).map(normalizeTask), [tasks]);
   const counts = useMemo(() => {
@@ -338,7 +352,7 @@ export function ChecklistDashboard({ trip, itinerary, tasks, onSave }: Checklist
 
   return (
     <motion.section className="checklist-dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.32 }}>
-      <ChecklistHero trip={trip} items={items} onJumpToNext={() => setActiveFilter('Flights & Travel')} />
+      <ChecklistHero trip={trip} items={items} familyMembers={familyMembers} onSaveFamilyMembers={onSaveFamilyMembers} onJumpToNext={() => setActiveFilter('Flights & Travel')} />
       <RouteTimeline itinerary={itinerary} />
       <div className="checklist-content-grid">
         <section className="checklist-main-column">
@@ -356,7 +370,7 @@ export function ChecklistDashboard({ trip, itinerary, tasks, onSave }: Checklist
             ))}
           </div>
         </section>
-        <RightWidgets items={items} />
+        <RightWidgets items={items} familyMembers={familyMembers} />
       </div>
     </motion.section>
   );

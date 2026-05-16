@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BookingTask, BudgetItem, DayPlan, SourceLink, Trip } from '../src/types';
+import type { BookingTask, BudgetItem, DayPlan, FamilyMember, SourceLink, Trip } from '../src/types';
 
 export interface SeedData {
   trip: Trip;
+  familyMembers: FamilyMember[];
   itinerary: DayPlan[];
   budget: BudgetItem[];
   tasks: BookingTask[];
@@ -11,6 +12,14 @@ export interface SeedData {
 }
 
 const checkedAt = '2026-05-10T00:00:00.000Z';
+
+export const familyMembers: FamilyMember[] = [
+  { id: 'justin', name: 'Justin', role: 'parent', avatarKey: 'dad', taskColor: '#0B5D3B' },
+  { id: 'krissy', name: 'Krissy', role: 'parent', avatarKey: 'mom', taskColor: '#5F8B4C' },
+  { id: 'lyla', name: 'Lyla', role: 'child', avatarKey: 'lyla', taskColor: '#D9B95B' },
+  { id: 'grace', name: 'Grace', role: 'child', avatarKey: 'grace', taskColor: '#C86B25' },
+  { id: 'everly', name: 'Everly', role: 'child', avatarKey: 'everly', taskColor: '#2F7D67' }
+];
 
 const sources: SourceLink[] = [
   { id: 'src-dublin-zoo', title: 'Dublin Zoo', url: 'https://www.dublinzoo.ie/', sourceType: 'official', checkedAt, status: 'unchecked' },
@@ -307,7 +316,7 @@ const tasks: BookingTask[] = [
     actionLabel: 'View Options',
     subtasksDone: 0,
     subtasksTotal: 2,
-    assignedTo: ['Thomas', 'Laura'],
+    assignedTo: ['Justin', 'Krissy'],
     familyImpact: 'Affects all travelers'
   },
   {
@@ -325,7 +334,7 @@ const tasks: BookingTask[] = [
     actionLabel: 'Open Documents',
     subtasksDone: 1,
     subtasksTotal: 1,
-    assignedTo: ['Thomas'],
+    assignedTo: ['Justin'],
     familyImpact: 'Documents'
   },
   {
@@ -342,7 +351,7 @@ const tasks: BookingTask[] = [
     actionLabel: 'View Alerts',
     subtasksDone: 1,
     subtasksTotal: 2,
-    assignedTo: ['Thomas']
+    assignedTo: ['Justin']
   },
   {
     id: 'task-check-airline-points',
@@ -388,7 +397,7 @@ const tasks: BookingTask[] = [
     actionLabel: 'View Stays',
     subtasksDone: 2,
     subtasksTotal: 6,
-    assignedTo: ['Laura']
+    assignedTo: ['Krissy']
   },
   {
     id: 'task-book-lodging',
@@ -686,5 +695,5 @@ export function buildSeedData(transcriptPath = path.resolve(process.cwd(), 'Chat
     updatedAt: new Date().toISOString()
   };
 
-  return { trip, itinerary, budget, tasks, sources };
+  return { trip, familyMembers, itinerary, budget, tasks, sources };
 }

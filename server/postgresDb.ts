@@ -1,10 +1,10 @@
 import { neon } from '@neondatabase/serverless';
 import { buildSeedData, type SeedData } from './seed.js';
-import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
+import type { BookingTask, BudgetItem, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
 import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
-const seedVersion = '4';
+const seedVersion = '5';
 
 function mergeSeedTasks(seedTasks: BookingTask[], currentTasks: BookingTask[] = [], preserveStatus = true) {
   const currentById = new Map(currentTasks.map((task) => [task.id, task]));
@@ -38,11 +38,14 @@ export class PostgresTripDatabase implements TripDatabase {
     if (rows[0]?.value === seedVersion) return;
     if (rows[0]) {
       const currentTasks = (await this.sql`SELECT value FROM trip_agent_kv WHERE key = 'tasks'`) as Array<{ value: BookingTask[] }>;
-      await this.setWithoutInit('tasks', mergeSeedTasks(this.seed.tasks, currentTasks[0]?.value || [], rows[0].value === '1'));
+      await this.setWithoutInit('tasks', mergeSeedTasks(this.seed.tasks, currentTasks[0]?.value || [], Boolean(rows[0].value)));
+      const currentFamilyMembers = (await this.sql`SELECT value FROM trip_agent_kv WHERE key = 'familyMembers'`) as Array<{ value: FamilyMember[] }>;
+      await this.setWithoutInit('familyMembers', currentFamilyMembers[0]?.value || this.seed.familyMembers);
       await this.setWithoutInit('seedVersion', seedVersion);
       return;
     }
     await this.setWithoutInit('trip', this.seed.trip);
+    await this.setWithoutInit('familyMembers', this.seed.familyMembers);
     await this.setWithoutInit('itinerary', this.seed.itinerary);
     await this.setWithoutInit('budget', this.seed.budget);
     await this.setWithoutInit('tasks', this.seed.tasks);
@@ -75,6 +78,8 @@ export class PostgresTripDatabase implements TripDatabase {
 
   getTrip() { return this.get<Trip>('trip'); }
   saveTrip(trip: Trip) { return this.set('trip', trip); }
+  getFamilyMembers() { return this.get<FamilyMember[]>('familyMembers'); }
+  saveFamilyMembers(members: FamilyMember[]) { return this.set('familyMembers', members); }
   getItinerary() { return this.get<DayPlan[]>('itinerary'); }
   saveItinerary(itinerary: DayPlan[]) { return this.set('itinerary', itinerary); }
   getBudget() { return this.get<BudgetItem[]>('budget'); }

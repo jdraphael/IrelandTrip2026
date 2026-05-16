@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { applyBudgetDraft, applyResearchDraft, applyTaskDraft } from '../src/lib/drafts';
 import { calculateBudgetSummary } from '../src/lib/budget';
+import { getTimeOfDayGreeting } from '../src/lib/greeting';
 import { classifySource, summarizeSources } from '../src/lib/sources';
 import { summarizeTasks } from '../src/lib/tasks';
 import type { BudgetItem, BookingTask, DayPlan, ResearchDraft, SourceLink } from '../src/types';
+
+describe('family greeting', () => {
+  it('formats the family greeting by time of day', () => {
+    expect(getTimeOfDayGreeting(new Date('2026-05-15T08:00:00'))).toBe('Good morning, Raphael family');
+    expect(getTimeOfDayGreeting(new Date('2026-05-15T13:00:00'))).toBe('Good afternoon, Raphael family');
+    expect(getTimeOfDayGreeting(new Date('2026-05-15T19:00:00'))).toBe('Good evening, Raphael family');
+  });
+});
 
 describe('budget summary', () => {
   it('calculates planned, actual, and remaining amounts against the trip target', () => {

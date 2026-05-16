@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { buildSeedData, type SeedData } from './seed.js';
-import type { BookingTask, BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
+import type { BookingTask, BudgetItem, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../src/types.js';
 import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
-const seedVersion = '4';
+const seedVersion = '5';
 
 function mergeSeedTasks(seedTasks: BookingTask[], currentTasks: BookingTask[] = [], preserveStatus = true) {
   const currentById = new Map(currentTasks.map((task) => [task.id, task]));
@@ -36,11 +36,14 @@ class SqliteTripDatabase implements TripDatabase {
     if (count.count > 0 && currentVersion === seedVersion) return;
     if (count.count > 0) {
       const currentTasks = this.db.prepare('SELECT value FROM kv WHERE key = ?').get('tasks') as { value: string } | undefined;
-      this.set('tasks', mergeSeedTasks(seed.tasks, currentTasks ? JSON.parse(currentTasks.value) as BookingTask[] : [], currentVersion === '1'));
+      this.set('tasks', mergeSeedTasks(seed.tasks, currentTasks ? JSON.parse(currentTasks.value) as BookingTask[] : [], Boolean(currentVersion)));
+      const currentFamilyMembers = this.db.prepare('SELECT value FROM kv WHERE key = ?').get('familyMembers') as { value: string } | undefined;
+      this.set('familyMembers', currentFamilyMembers ? JSON.parse(currentFamilyMembers.value) as FamilyMember[] : seed.familyMembers);
       this.set('seedVersion', seedVersion);
       return;
     }
     this.set('trip', seed.trip);
+    this.set('familyMembers', seed.familyMembers);
     this.set('itinerary', seed.itinerary);
     this.set('budget', seed.budget);
     this.set('tasks', seed.tasks);
@@ -65,6 +68,8 @@ class SqliteTripDatabase implements TripDatabase {
 
   async getTrip() { return this.get<Trip>('trip'); }
   async saveTrip(trip: Trip) { return this.set('trip', trip); }
+  async getFamilyMembers() { return this.get<FamilyMember[]>('familyMembers'); }
+  async saveFamilyMembers(members: FamilyMember[]) { return this.set('familyMembers', members); }
   async getItinerary() { return this.get<DayPlan[]>('itinerary'); }
   async saveItinerary(itinerary: DayPlan[]) { return this.set('itinerary', itinerary); }
   async getBudget() { return this.get<BudgetItem[]>('budget'); }

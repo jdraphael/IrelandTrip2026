@@ -9,6 +9,7 @@ describe('Ireland trip seed data', () => {
     expect(seed.trip.year).toBe(2027);
     expect(seed.trip.month).toBe('June');
     expect(seed.trip.travelers).toBe(5);
+    expect(seed.familyMembers.map((member) => member.name)).toEqual(['Justin', 'Krissy', 'Lyla', 'Grace', 'Everly']);
     expect(seed.trip.budgetTarget).toBe(15000);
     expect(seed.itinerary.map((day) => day.base)).toContain('Dingle');
     expect(seed.tasks.some((task) => task.title.includes('passports') && task.dueDate.startsWith('2026-10'))).toBe(true);
@@ -25,7 +26,8 @@ describe('Ireland trip seed data', () => {
       displayCategory: 'Flights & Travel',
       imageKey: 'flights',
       subtasksTotal: 2,
-      actionLabel: 'View Options'
+      actionLabel: 'View Options',
+      assignedTo: ['Justin', 'Krissy']
     });
     expect(flights?.aiSuggestion).toContain('Tuesday departures');
     expect(categories).toEqual(new Set([
