@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus, RefreshCw, Repeat2, X } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Banknote, Minus, RefreshCw, Repeat2, X } from 'lucide-react';
 import { formatCacheAge, formatCurrencyAmount, formatExchangeRate, formatRelativeTime } from '../currency/format';
 import { useCurrencyRate } from '../currency/useCurrencyRate';
 import type { CurrencyCode, CurrencyRate } from '../currency/types';
@@ -21,7 +21,7 @@ function conversionValue(amount: number, direction: 'usd-eur' | 'eur-usd', rate:
   return direction === 'usd-eur' ? amount * rate : amount / rate;
 }
 
-export function CurrencyHeaderTile() {
+export function CurrencyHeaderTile({ variant = 'tile' }: { variant?: 'tile' | 'nav' }) {
   const { status, rate, previousRate, error, isOffline, isRefreshing, retry } = useCurrencyRate();
   const [modalOpen, setModalOpen] = useState(false);
   const [direction, setDirection] = useState<'usd-eur' | 'eur-usd'>('usd-eur');
@@ -81,30 +81,52 @@ export function CurrencyHeaderTile() {
     </>
   );
 
+  const trigger = variant === 'nav' ? (
+    <button
+      className={`currency-nav-button ${status === 'loading' && !rate ? 'currency-nav-button-loading' : ''}`}
+      type="button"
+      aria-label="Travel conversion tool"
+      aria-haspopup="dialog"
+      aria-expanded={modalOpen}
+      onClick={() => {
+        setModalOpen(true);
+      }}
+    >
+      <Banknote size={18} />
+      <span className="nav-label currency-nav-copy">
+        <span>Travel Conversion</span>
+        <small>{rate ? formatExchangeRate(rate) : status === 'loading' ? 'Loading rate' : 'Rate unavailable'}</small>
+      </span>
+      {isRefreshing && <RefreshCw className="currency-refreshing" size={13} aria-label="Refreshing currency rate" />}
+    </button>
+  ) : (
+    <div className={`currency-header-control ${status === 'error' && !rate ? 'currency-header-control-error' : ''}`}>
+      <button
+        className={`currency-tile ${status === 'loading' && !rate ? 'currency-tile-loading' : ''}`}
+        type="button"
+        aria-label={rate ? 'Open currency calculator' : status === 'loading' ? 'Loading currency rate' : 'Currency rate unavailable'}
+        onClick={() => {
+          if (rate) setModalOpen(true);
+        }}
+      >
+        {tileContent}
+      </button>
+      {status === 'error' && !rate && (
+        <button className="currency-retry" type="button" aria-label="Retry currency rate" onClick={() => void retry()}>
+          <RefreshCw size={15} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <>
-      <div className={`currency-header-control ${status === 'error' && !rate ? 'currency-header-control-error' : ''}`}>
-        <button
-          className={`currency-tile ${status === 'loading' && !rate ? 'currency-tile-loading' : ''}`}
-          type="button"
-          aria-label={rate ? 'Open currency calculator' : status === 'loading' ? 'Loading currency rate' : 'Currency rate unavailable'}
-          onClick={() => {
-            if (rate) setModalOpen(true);
-          }}
-        >
-          {tileContent}
-        </button>
-        {status === 'error' && !rate && (
-          <button className="currency-retry" type="button" aria-label="Retry currency rate" onClick={() => void retry()}>
-            <RefreshCw size={15} />
-          </button>
-        )}
-      </div>
+      {trigger}
 
-      {modalOpen && rate && (
-        <div className="currency-modal-backdrop" role="presentation" onMouseDown={() => setModalOpen(false)}>
+      {modalOpen && (rate || variant === 'nav') && (
+        <div className={`currency-modal-backdrop ${variant === 'nav' ? 'currency-module-backdrop' : ''}`} role="presentation" onMouseDown={() => setModalOpen(false)}>
           <section
-            className="currency-modal"
+            className={`currency-modal ${variant === 'nav' ? 'currency-module' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="currency-modal-title"
@@ -113,44 +135,53 @@ export function CurrencyHeaderTile() {
             <div className="currency-modal-head">
               <div>
                 <span className="currency-modal-kicker">Travel conversion</span>
-                <h2 id="currency-modal-title">{sourceCurrency} to {targetCurrency}</h2>
+                <h2 id="currency-modal-title">{rate ? `${sourceCurrency} to ${targetCurrency}` : 'Travel conversion'}</h2>
               </div>
               <button className="icon-button" type="button" aria-label="Close currency calculator" onClick={() => setModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div className="currency-calculator">
-              <label htmlFor={amountId}>Amount to convert</label>
-              <div className="currency-input-row">
-                <span>{currencyFlags[sourceCurrency]} {sourceCurrency}</span>
-                <input
-                  id={amountId}
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
+            {rate ? (
+              <>
+                <div className="currency-calculator">
+                  <label htmlFor={amountId}>Amount to convert</label>
+                  <div className="currency-input-row">
+                    <span>{currencyFlags[sourceCurrency]} {sourceCurrency}</span>
+                    <input
+                      id={amountId}
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(event) => setAmount(event.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="button secondary compact"
+                    type="button"
+                    aria-label="Swap conversion direction"
+                    onClick={() => setDirection((current) => current === 'usd-eur' ? 'eur-usd' : 'usd-eur')}
+                  >
+                    <Repeat2 size={15} /> Swap
+                  </button>
+                </div>
+
+                <div className="currency-result" aria-live="polite">
+                  <span>{currencyFlags[targetCurrency]} {targetCurrency}</span>
+                  <strong>{formatCurrencyAmount(targetAmount, targetCurrency)}</strong>
+                </div>
+
+                <div className="currency-modal-meta">
+                  <span>{formatExchangeRate(rate)}</span>
+                  <span>Provider date {rate.providerDate}</span>
+                  <span>{statusText}</span>
+                </div>
+              </>
+            ) : (
+              <div className="currency-module-empty" aria-live="polite">
+                <strong>{status === 'loading' ? 'Loading live rate' : 'Rate unavailable'}</strong>
+                <p>{status === 'loading' ? 'Checking the latest USD to EUR rate...' : error || 'Refresh the rate and try again.'}</p>
               </div>
-              <button
-                className="button secondary compact"
-                type="button"
-                aria-label="Swap conversion direction"
-                onClick={() => setDirection((current) => current === 'usd-eur' ? 'eur-usd' : 'usd-eur')}
-              >
-                <Repeat2 size={15} /> Swap
-              </button>
-            </div>
-
-            <div className="currency-result" aria-live="polite">
-              <span>{currencyFlags[targetCurrency]} {targetCurrency}</span>
-              <strong>{formatCurrencyAmount(targetAmount, targetCurrency)}</strong>
-            </div>
-
-            <div className="currency-modal-meta">
-              <span>{formatExchangeRate(rate)}</span>
-              <span>Provider date {rate.providerDate}</span>
-              <span>{statusText}</span>
-            </div>
+            )}
 
             <button className="button ghost full" type="button" onClick={() => void retry()}>
               <RefreshCw size={15} /> Refresh rate

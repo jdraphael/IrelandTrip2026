@@ -1096,9 +1096,11 @@ export default function App() {
         </div>
         <nav className="desktop-nav" aria-label="Primary navigation">
           <NavigationItems activeTab={tab} onSelect={selectTab} />
+          <CurrencyHeaderTile variant="nav" />
         </nav>
         <div className={`mobile-nav-drawer ${mobileNavOpen ? 'open' : ''}`} aria-label="Mobile navigation" aria-hidden={mobileNavOpen ? 'false' : 'true'}>
           <NavigationItems activeTab={tab} onSelect={selectTab} />
+          <CurrencyHeaderTile variant="nav" />
         </div>
         <div className="sidebar-family-card">
           <div className="family-avatar-stack" aria-hidden="true">
@@ -1135,7 +1137,6 @@ export default function App() {
           </div>
           <div className="topbar-meta">
             <button className="icon-button topbar-bell" type="button" aria-label="Notifications"><Bell size={16} /></button>
-            <CurrencyHeaderTile />
             <button className="button ghost compact" onClick={() => setBrowserCollapsed((current) => !current)} aria-label={browserCollapsed ? 'Expand browser view' : 'Collapse browser view'}>
               {browserCollapsed ? <Eye size={15} /> : <EyeOff size={15} />}
               {browserCollapsed ? 'Expand View' : 'Collapse View'}
