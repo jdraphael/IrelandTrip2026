@@ -8,6 +8,7 @@ import {
   Castle,
   CheckCircle2,
   ChevronDown,
+  ExternalLink,
   FileText,
   Home,
   Hotel,
@@ -16,14 +17,17 @@ import {
   ShieldCheck,
   Sparkles,
   Ticket,
+  Upload,
+  X,
   Users
 } from 'lucide-react';
-import type { TasksResponse } from '../api';
+import { api, type TasksResponse } from '../api';
 import { TravelerMenu, fallbackMembers } from './TravelerMenu';
 import { getTimeOfDayGreeting } from '../lib/greeting';
 import type { BookingTask, DayPlan, FamilyMember, Trip } from '../types';
 
 type ChecklistCategory = NonNullable<BookingTask['displayCategory']>;
+type ChecklistSort = 'priority' | 'dueDate' | 'status' | 'category' | 'assigned' | 'progress';
 
 interface ChecklistDashboardProps {
   trip?: Trip;
@@ -54,6 +58,9 @@ const imageByKey: Record<string, string> = {
   documents: '/dashboard-assets/checklist/checklist-family-prep.webp',
   experiences: '/dashboard-assets/checklist/checklist-experiences.webp'
 };
+
+const priorityRank = { high: 0, medium: 1, low: 2 };
+const statusRank = { open: 0, blocked: 1, done: 2 };
 
 const routeImages: Record<string, string> = {
   LEX: '/dashboard-assets/checklist/checklist-flight-booking.webp',
@@ -102,17 +109,52 @@ function percent(value: number, total: number) {
   return Math.round((value / total) * 100);
 }
 
-function routeStops(itinerary: DayPlan[]) {
-  const bases = itinerary
-    .map((day) => day.base === 'Dublin Airport' ? 'Dublin' : day.base)
-    .filter((base) => !['In flight', 'Travel home'].includes(base));
-  const unique = bases.filter((base, index) => bases.indexOf(base) === index);
-  const ordered = ['Dublin', 'Kilkenny', 'Cork', 'Dingle', 'Galway', 'Dublin'];
-  return ['LEX', ...(unique.length >= 4 ? ordered : ordered)].map((base, index) => ({
-    base,
-    label: index === 0 ? 'Departure' : index === 1 ? '2-3 Nights' : base === 'Kilkenny' || base === 'Galway' ? '1 Night' : '2 Nights',
-    completed: index > 0 && index < 3
-  }));
+function parseDate(value?: string) {
+  if (!value) return undefined;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function formatTripDateRange(trip?: Trip) {
+  const start = parseDate(trip?.startDate);
+  const end = parseDate(trip?.endDate);
+  if (!start || !end) return `${trip?.month || 'June'} ${trip?.year || 2027}`;
+  const startMonth = start.toLocaleString('en-US', { month: 'short' });
+  const endMonth = end.toLocaleString('en-US', { month: 'short' });
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  return sameMonth
+    ? `${startMonth} ${start.getDate()}-${end.getDate()}, ${end.getFullYear()}`
+    : `${startMonth} ${start.getDate()}-${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
+}
+
+function daysUntilTrip(startDate?: string) {
+  const start = parseDate(startDate);
+  if (!start) return undefined;
+  const today = new Date();
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.max(0, Math.ceil((start.getTime() - todayLocal.getTime()) / 86_400_000));
+}
+
+const routePlan = [
+  { base: 'LEX', title: 'Lexington departure', label: 'Departure', start: '2027-06-18', end: '2027-06-18' },
+  { base: 'Dublin', title: 'Dublin', label: '3 Nights', start: '2027-06-19', end: '2027-06-21' },
+  { base: 'Kilkenny', title: 'Kilkenny', label: '1 Night', start: '2027-06-22', end: '2027-06-22' },
+  { base: 'Cork', title: 'Cork', label: '2 Nights', start: '2027-06-23', end: '2027-06-24' },
+  { base: 'Dingle', title: 'Dingle', label: '2 Nights', start: '2027-06-25', end: '2027-06-26' },
+  { base: 'Galway', title: 'Galway', label: '1 Night', start: '2027-06-27', end: '2027-06-27' },
+  { base: 'Dublin', title: 'Dublin return', label: '2 Nights', start: '2027-06-28', end: '2027-06-29' }
+];
+
+function routeStops() {
+  const today = new Date();
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return routePlan.map((stop) => {
+    const start = parseDate(stop.start)!;
+    const end = parseDate(stop.end)!;
+    const complete = todayLocal.getTime() > end.getTime();
+    const active = todayLocal.getTime() >= start.getTime() && todayLocal.getTime() <= end.getTime();
+    return { ...stop, complete, active, status: complete ? 'completed' : active ? 'in progress' : 'pending' };
+  });
 }
 
 function ProgressBar({ value, tone = 'green' }: { value: number; tone?: 'green' | 'gold' | 'orange' }) {
@@ -135,12 +177,14 @@ function ChecklistHero({ trip, items, familyMembers, onSaveFamilyMembers, onJump
   const nextTask = items.find((task) => task.id === 'task-book-flights' && task.status !== 'done') || [...items].filter((task) => task.status === 'open').sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
   const greeting = getTimeOfDayGreeting();
   const travelerCount = familyMembers?.length || trip?.travelers || 5;
+  const tripDateRange = formatTripDateRange(trip);
+  const countdown = daysUntilTrip(trip?.startDate);
 
   return (
     <section className="checklist-hero">
       <div className="checklist-hero-toolbar" aria-label="Trip controls">
         <button className="checklist-icon-button" type="button" aria-label="Notifications"><Bell size={17} /></button>
-        <button className="checklist-control" type="button">June 2027 <ChevronDown size={15} /></button>
+        <button className="checklist-control" type="button">{tripDateRange} <ChevronDown size={15} /></button>
         <TravelerMenu members={familyMembers} onSave={onSaveFamilyMembers} className="checklist-traveler-menu" />
         <button className="checklist-shamrock" type="button" aria-label="Ireland trip magic">♣</button>
       </div>
@@ -149,7 +193,7 @@ function ChecklistHero({ trip, items, familyMembers, onSaveFamilyMembers, onJump
         <h1>Ireland Family Adventure</h1>
         <p className="checklist-hero-subtitle">Let’s get everything ready for an unforgettable trip together.</p>
         <div className="checklist-trip-meta">
-          <span><CalendarDays size={16} /> {trip?.month || 'June'} {trip?.year || 2027}</span>
+          <span><CalendarDays size={16} /> {tripDateRange}</span>
           <span><Users size={16} /> {travelerCount} Travelers</span>
           <span><Plane size={16} /> {trip?.origin || 'LEX'} → {trip?.destination || 'DUB'}</span>
         </div>
@@ -172,22 +216,22 @@ function ChecklistHero({ trip, items, familyMembers, onSaveFamilyMembers, onJump
       </div>
       <motion.aside className="checklist-countdown" initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.25 }}>
         <span>Countdown to Ireland</span>
-        <strong>392</strong>
+        <strong>{countdown ?? '...'}</strong>
         <p>days to go! ♧</p>
-        <span className="checklist-countdown-accessible">392 days to go</span>
+        <span className="checklist-countdown-accessible">{countdown ?? 0} days to go</span>
       </motion.aside>
     </section>
   );
 }
 
-function RouteTimeline({ itinerary }: { itinerary: DayPlan[] }) {
+function RouteTimeline() {
   return (
     <section className="checklist-route" aria-label="Ireland route timeline">
-      {routeStops(itinerary).map((stop, index) => (
-        <div className={`checklist-route-stop ${stop.completed ? 'complete' : ''}`} key={`${stop.base}-${index}`}>
-          <span className="route-node">
+      {routeStops().map((stop, index) => (
+        <div className={`checklist-route-stop ${stop.complete ? 'complete' : ''} ${stop.active ? 'active' : ''}`} key={`${stop.base}-${index}`}>
+          <span className="route-node" aria-label={`${stop.title} ${stop.status}`}>
             <img src={routeImages[stop.base] || routeImages.Dublin} alt="" aria-hidden="true" />
-            {stop.completed && <CheckCircle2 size={17} />}
+            {stop.complete && <CheckCircle2 size={17} />}
           </span>
           <strong>{stop.base}</strong>
           <small>{stop.label}</small>
@@ -215,7 +259,18 @@ function CategoryFilters({ active, counts, total, onSelect }: { active: 'All Ite
   );
 }
 
-function ChecklistTaskCard({ task, onSave }: { task: ReturnType<typeof normalizeTask>; onSave: (items: Partial<BookingTask>[]) => Promise<void> }) {
+function sortTasks(items: ReturnType<typeof normalizeTask>[], sort: ChecklistSort) {
+  return [...items].sort((a, b) => {
+    if (sort === 'dueDate') return a.dueDate.localeCompare(b.dueDate);
+    if (sort === 'status') return statusRank[a.status] - statusRank[b.status] || a.dueDate.localeCompare(b.dueDate);
+    if (sort === 'category') return a.displayCategory.localeCompare(b.displayCategory) || a.dueDate.localeCompare(b.dueDate);
+    if (sort === 'assigned') return (a.assignedTo?.[0] || 'zzz').localeCompare(b.assignedTo?.[0] || 'zzz') || a.dueDate.localeCompare(b.dueDate);
+    if (sort === 'progress') return percent(a.subtasksDone || 0, a.subtasksTotal || 1) - percent(b.subtasksDone || 0, b.subtasksTotal || 1);
+    return priorityRank[a.priority] - priorityRank[b.priority] || a.dueDate.localeCompare(b.dueDate);
+  });
+}
+
+function ChecklistTaskCard({ task, onSave, onOpen }: { task: ReturnType<typeof normalizeTask>; onSave: (items: Partial<BookingTask>[]) => Promise<void>; onOpen: (task: ReturnType<typeof normalizeTask>) => void }) {
   const Icon = categoryIcons[task.displayCategory];
   const isDone = task.status === 'done';
   const progress = `${task.subtasksDone || 0}/${task.subtasksTotal || 1}`;
@@ -258,12 +313,160 @@ function ChecklistTaskCard({ task, onSave }: { task: ReturnType<typeof normalize
           <span className="checklist-complete-label">Completed</span>
         ) : (
           <>
-            <button className="checklist-card-action" type="button">{task.actionLabel} <span aria-hidden="true">→</span></button>
+            <button className="checklist-card-action" type="button" onClick={() => onOpen(task)}>{task.actionLabel} <span aria-hidden="true">→</span></button>
             <button className="checklist-mark-complete" type="button" onClick={() => onSave([{ id: task.id, status: 'done' }])}>Mark Complete</button>
           </>
         )}
       </div>
     </motion.article>
+  );
+}
+
+function fieldLabels(task: BookingTask) {
+  const category = derivedCategory(task);
+  if (category === 'Flights & Travel') return ['Preferred airlines', 'Seating priority', 'Timing window'];
+  if (category === 'Lodging & Stays') return ['Preferred stay type', 'Room setup', 'Must-have amenities'];
+  if (category === 'Driving in Ireland') return ['Rental target', 'Insurance question', 'Driving concern'];
+  if (category === 'Experiences') return ['Booking window', 'Weather backup', 'Family priority'];
+  return ['Document owner', 'Deadline detail', 'Family note'];
+}
+
+async function fileToBase64(file: File) {
+  const buffer = await file.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function TaskDetailModal({ task, onClose, onSave }: { task: ReturnType<typeof normalizeTask>; onClose: () => void; onSave: (items: Partial<BookingTask>[]) => Promise<void> }) {
+  const [draft, setDraft] = useState<Partial<BookingTask>>({
+    id: task.id,
+    decisionSummary: task.decisionSummary || '',
+    detailedNotes: task.detailedNotes || task.notes || '',
+    budgetEstimate: task.budgetEstimate,
+    planningFields: { ...(task.planningFields || {}) },
+    detailSubtasks: task.detailSubtasks || [],
+    detailLinks: task.detailLinks || [],
+    attachments: task.attachments || []
+  });
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [draftMessage, setDraftMessage] = useState('');
+  const labels = fieldLabels(task);
+  const planningFields = draft.planningFields || {};
+  const attachments = draft.attachments || [];
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave([draft]);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const upload = async (file?: File) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const attachment = await api.uploadTaskAttachment({
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        dataBase64: await fileToBase64(file)
+      });
+      setDraft((current) => ({ ...current, attachments: [...(current.attachments || []), attachment] }));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const createDraft = async () => {
+    const summary = draft.decisionSummary || draft.detailedNotes || `Use checklist details from ${task.title}.`;
+    const created = await api.createTaskItineraryDraft(task.id, summary);
+    setDraftMessage(`${created.title} created for review.`);
+  };
+
+  return (
+    <div className="task-modal-backdrop" role="presentation">
+      <section className="task-detail-modal" role="dialog" aria-modal="true" aria-label={task.title}>
+        <header className="task-modal-head">
+          <div>
+            <span className={`checklist-priority ${task.priority}`}>{task.displayCategory}</span>
+            <h2>{task.title}</h2>
+          </div>
+          <button className="checklist-icon-button" type="button" onClick={onClose} aria-label="Close task details"><X size={17} /></button>
+        </header>
+        <div className="task-modal-grid">
+          <label>
+            <span>Decision summary</span>
+            <textarea value={draft.decisionSummary || ''} onChange={(event) => setDraft((current) => ({ ...current, decisionSummary: event.target.value }))} />
+          </label>
+          <label>
+            <span>Detailed notes</span>
+            <textarea value={draft.detailedNotes || ''} onChange={(event) => setDraft((current) => ({ ...current, detailedNotes: event.target.value }))} />
+          </label>
+          <label>
+            <span>Budget estimate</span>
+            <input type="number" value={draft.budgetEstimate ?? ''} onChange={(event) => setDraft((current) => ({ ...current, budgetEstimate: event.target.value === '' ? undefined : Number(event.target.value) }))} />
+          </label>
+          {labels.map((label) => (
+            <label key={label}>
+              <span>{label}</span>
+              <input
+                value={planningFields[label] || ''}
+                onChange={(event) => setDraft((current) => ({ ...current, planningFields: { ...(current.planningFields || {}), [label]: event.target.value } }))}
+              />
+            </label>
+          ))}
+          {Object.entries(planningFields).filter(([key]) => !labels.includes(key)).map(([key, value]) => (
+            <p className="task-existing-field" key={key}>{value}</p>
+          ))}
+        </div>
+        <section className="task-modal-section">
+          <h3>Granular checklist</h3>
+          {(draft.detailSubtasks || []).map((subtask) => (
+            <label className="task-subtask-row" key={subtask.id}>
+              <input
+                type="checkbox"
+                checked={subtask.done}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  detailSubtasks: (current.detailSubtasks || []).map((item) => item.id === subtask.id ? { ...item, done: event.target.checked } : item)
+                }))}
+              />
+              <span>{subtask.label}</span>
+            </label>
+          ))}
+        </section>
+        <section className="task-modal-section">
+          <h3>Documents</h3>
+          <label className="task-upload-button">
+            <Upload size={16} />
+            <span>{uploading ? 'Uploading...' : 'Upload document'}</span>
+            <input type="file" onChange={(event) => void upload(event.target.files?.[0])} disabled={uploading} />
+          </label>
+          <div className="task-attachment-list">
+            {attachments.map((attachment) => (
+              <a href={attachment.url} target="_blank" rel="noreferrer" key={attachment.id}>
+                <FileText size={16} />
+                <span>{attachment.name}</span>
+                <small>{attachment.note || `${Math.max(1, Math.round(attachment.size / 1024))} KB`}</small>
+                <ExternalLink size={14} />
+              </a>
+            ))}
+          </div>
+        </section>
+        {draftMessage && <p className="task-draft-message">{draftMessage}</p>}
+        <footer className="task-modal-actions">
+          <button className="checklist-outline-button" type="button" onClick={createDraft}>Create itinerary draft</button>
+          <button className="checklist-card-action" type="button" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save details'}</button>
+        </footer>
+      </section>
+    </div>
   );
 }
 
@@ -340,20 +543,22 @@ function RightWidgets({ items, familyMembers }: { items: ReturnType<typeof norma
 
 export function ChecklistDashboard({ trip, itinerary, tasks, familyMembers, onSave, onSaveFamilyMembers }: ChecklistDashboardProps) {
   const [activeFilter, setActiveFilter] = useState<'All Items' | ChecklistCategory>('All Items');
+  const [sort, setSort] = useState<ChecklistSort>('priority');
+  const [selectedTask, setSelectedTask] = useState<ReturnType<typeof normalizeTask> | undefined>();
   const items = useMemo(() => (tasks?.items || []).map(normalizeTask), [tasks]);
   const counts = useMemo(() => {
     const next = new Map<ChecklistCategory, number>();
     categories.forEach((category) => next.set(category, items.filter((task) => task.displayCategory === category).length));
     return next;
   }, [items]);
-  const filteredItems = activeFilter === 'All Items' ? items : items.filter((task) => task.displayCategory === activeFilter);
+  const filteredItems = sortTasks(activeFilter === 'All Items' ? items : items.filter((task) => task.displayCategory === activeFilter), sort);
 
   if (!tasks) return null;
 
   return (
     <motion.section className="checklist-dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.32 }}>
       <ChecklistHero trip={trip} items={items} familyMembers={familyMembers} onSaveFamilyMembers={onSaveFamilyMembers} onJumpToNext={() => setActiveFilter('Flights & Travel')} />
-      <RouteTimeline itinerary={itinerary} />
+      <RouteTimeline />
       <div className="checklist-content-grid">
         <section className="checklist-main-column">
           <div className="checklist-section-head">
@@ -361,17 +566,29 @@ export function ChecklistDashboard({ trip, itinerary, tasks, familyMembers, onSa
               <h2>Checklist <span aria-hidden="true">♣</span></h2>
               <p>Stay organized and check off each item as you go.</p>
             </div>
-            <button className="checklist-sort" type="button">Sort by: Priority <ChevronDown size={15} /></button>
+            <label className="checklist-sort">
+              <span>Sort by:</span>
+              <select aria-label="Sort checklist" value={sort} onChange={(event) => setSort(event.target.value as ChecklistSort)}>
+                <option value="priority">Priority</option>
+                <option value="dueDate">Due Date</option>
+                <option value="status">Status</option>
+                <option value="category">Category</option>
+                <option value="assigned">Assigned Traveler</option>
+                <option value="progress">Progress</option>
+              </select>
+              <ChevronDown size={15} />
+            </label>
           </div>
           <CategoryFilters active={activeFilter} counts={counts} total={items.length} onSelect={setActiveFilter} />
           <div className="checklist-card-stack">
             {filteredItems.map((task) => (
-              <ChecklistTaskCard task={task} onSave={onSave} key={task.id} />
+              <ChecklistTaskCard task={task} onSave={onSave} onOpen={setSelectedTask} key={task.id} />
             ))}
           </div>
         </section>
         <RightWidgets items={items} familyMembers={familyMembers} />
       </div>
+      {selectedTask && <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(undefined)} onSave={onSave} />}
     </motion.section>
   );
 }

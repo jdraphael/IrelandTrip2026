@@ -6,6 +6,9 @@ import { createTestDatabase } from '../server/db';
 const openAiMock = vi.hoisted(() => ({
   responsesCreate: vi.fn()
 }));
+const blobMock = vi.hoisted(() => ({
+  put: vi.fn()
+}));
 
 vi.mock('openai', () => ({
   default: vi.fn(function OpenAI() {
@@ -17,9 +20,14 @@ vi.mock('openai', () => ({
   })
 }));
 
+vi.mock('@vercel/blob', () => ({
+  put: blobMock.put
+}));
+
 describe('trip agent API', () => {
   beforeEach(() => {
     openAiMock.responsesCreate.mockReset();
+    blobMock.put.mockReset();
   });
 
   const day = (dayNumber: number) => ({
@@ -43,6 +51,7 @@ describe('trip agent API', () => {
     const familyMembers = await request(app).get('/api/family-members').expect(200);
 
     expect(trip.body.year).toBe(2027);
+    expect(trip.body).toMatchObject({ startDate: '2027-06-18', endDate: '2027-06-30' });
     expect(familyMembers.body.map((member: { name: string }) => member.name)).toEqual(['Justin', 'Krissy', 'Lyla', 'Grace', 'Everly']);
     expect(itinerary.body.length).toBeGreaterThan(10);
     expect(budget.body.summary.target).toBe(15000);
@@ -57,13 +66,112 @@ describe('trip agent API', () => {
       .patch('/api/family-members')
       .send([
         { id: 'justin', name: 'Justin Raphael', role: 'parent', avatarKey: 'dad', taskColor: '#0B5D3B' },
-        { id: 'krissy', name: 'Krissy', role: 'parent', avatarKey: 'mom', taskColor: '#5F8B4C' }
+        { id: 'krissy', name: 'Krissy', role: 'parent', avatarKey: 'mom', taskColor: '#5F8B4C', age: 39 }
       ])
       .expect(200);
 
     const familyMembers = await request(app).get('/api/family-members').expect(200);
     expect(familyMembers.body).toHaveLength(2);
     expect(familyMembers.body[0]).toMatchObject({ id: 'justin', name: 'Justin Raphael', role: 'parent' });
+    expect(familyMembers.body[1]).toMatchObject({ id: 'krissy', age: 39 });
+  });
+
+  it('saves rich checklist task detail fields', async () => {
+    const db = createTestDatabase();
+    const app = createApp({ db });
+
+    await request(app)
+      .patch('/api/tasks')
+      .send([{
+        id: 'task-book-flights',
+        decisionSummary: 'Target Delta or Aer Lingus main cabin with all five seats together.',
+        detailedNotes: 'Check seat maps before payment and avoid basic economy.',
+        budgetEstimate: 6200,
+        planningFields: {
+          preferredAirlines: 'Delta, Aer Lingus',
+          seatingPriority: 'All five seats together',
+          timingWindow: 'Depart June 18, return June 30'
+        },
+        detailSubtasks: [
+          { id: 'compare-routes', label: 'Compare one-stop routes from LEX', done: true },
+          { id: 'verify-seats', label: 'Verify seat map before checkout', done: false }
+        ],
+        detailLinks: [{ id: 'delta', label: 'Delta search', url: 'https://www.delta.com/' }],
+        attachments: [{
+          id: 'fare-sheet',
+          name: 'fare-watch.pdf',
+          url: 'https://blob.vercel-storage.com/fare-watch.pdf',
+          contentType: 'application/pdf',
+          size: 48123,
+          uploadedAt: '2026-05-16T13:00:00.000Z',
+          note: 'Initial fare comparison'
+        }]
+      }])
+      .expect(200);
+
+    const tasks = await request(app).get('/api/tasks').expect(200);
+    expect(tasks.body.items.find((task: { id: string }) => task.id === 'task-book-flights')).toMatchObject({
+      decisionSummary: 'Target Delta or Aer Lingus main cabin with all five seats together.',
+      budgetEstimate: 6200,
+      planningFields: { seatingPriority: 'All five seats together' },
+      attachments: [{ name: 'fare-watch.pdf', note: 'Initial fare comparison' }]
+    });
+  });
+
+  it('uploads checklist documents to Blob and returns task attachment metadata', async () => {
+    blobMock.put.mockResolvedValue({ url: 'https://blob.vercel-storage.com/checklist/fare-watch.pdf' });
+    const db = createTestDatabase();
+    const app = createApp({ db });
+
+    const response = await request(app)
+      .post('/api/uploads')
+      .send({
+        fileName: 'fare-watch.pdf',
+        contentType: 'application/pdf',
+        dataBase64: Buffer.from('pdf bytes').toString('base64'),
+        note: 'Fare comparison'
+      })
+      .expect(200);
+
+    expect(blobMock.put).toHaveBeenCalledWith(
+      expect.stringMatching(/^checklist-documents\/.+-fare-watch\.pdf$/),
+      expect.any(Buffer),
+      expect.objectContaining({ access: 'public', contentType: 'application/pdf' })
+    );
+    expect(response.body).toMatchObject({
+      name: 'fare-watch.pdf',
+      url: 'https://blob.vercel-storage.com/checklist/fare-watch.pdf',
+      contentType: 'application/pdf',
+      size: 9,
+      note: 'Fare comparison'
+    });
+  });
+
+  it('creates a reviewable itinerary draft from task details', async () => {
+    const db = createTestDatabase();
+    const app = createApp({ db });
+
+    const response = await request(app)
+      .post('/api/tasks/task-book-flights/itinerary-draft')
+      .send({ summary: 'Add confirmed flight booking notes to Day 1 and the return day.' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      kind: 'itinerary',
+      title: 'Review itinerary notes for Book flights and seats together',
+      status: 'draft',
+      payload: {
+        mode: 'patch',
+        dayId: 'day-1',
+        patch: expect.objectContaining({
+          notes: expect.stringContaining('Add confirmed flight booking notes')
+        })
+      },
+      sourceIds: ['task-book-flights']
+    });
+
+    const research = await request(app).get('/api/research').expect(200);
+    expect(research.body[0].drafts[0].id).toBe(response.body.id);
   });
 
   it('returns a clear research configuration message when no OpenAI key is configured', async () => {
