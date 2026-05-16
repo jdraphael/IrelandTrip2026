@@ -53,6 +53,10 @@ a {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 74% 5%, rgba(217, 185, 91, 0.22), transparent 270px),
+    var(--asset-texture) center/cover fixed,
+    linear-gradient(140deg, #f7f4ee 0%, #fdfdfc 45%, #edf3ef 100%);
   transition: grid-template-columns 0.18s ease;
 }
 
@@ -1699,9 +1703,9 @@ textarea {
 .dashboard-shell {
   grid-template-columns: 260px minmax(0, 1fr);
   background:
-    linear-gradient(180deg, rgba(247, 250, 248, 0.92), rgba(255, 255, 255, 0.86)),
-    var(--asset-texture) center / 900px auto repeat,
-    #f7faf8;
+    radial-gradient(circle at 74% 5%, rgba(217, 185, 91, 0.22), transparent 270px),
+    var(--asset-texture) center/cover fixed,
+    linear-gradient(140deg, #f7f4ee 0%, #fdfdfc 45%, #edf3ef 100%);
 }
 
 .dashboard-shell .sidebar {
@@ -1831,9 +1835,9 @@ textarea {
 .dashboard-shell .workspace {
   padding: 34px 26px 34px 28px;
   background:
-    linear-gradient(180deg, rgba(251, 253, 251, 0.9), rgba(251, 253, 251, 0.96)),
-    var(--asset-texture) center / 860px auto repeat,
-    #fbfdfb;
+    linear-gradient(180deg, rgba(251, 253, 251, 0.82), rgba(251, 253, 251, 0.92)),
+    var(--asset-texture) center/cover fixed,
+    transparent;
 }
 
 .dashboard-shell .topbar {
@@ -2519,7 +2523,7 @@ textarea {
   min-height: 100vh;
   background:
     radial-gradient(circle at 74% 5%, rgba(217, 185, 91, 0.22), transparent 270px),
-    url("/dashboard-assets/checklist/dashboard-background-texture.webp") center/cover fixed,
+    var(--asset-texture) center/cover fixed,
     linear-gradient(140deg, #f7f4ee 0%, #fdfdfc 45%, #edf3ef 100%);
   color: #24323d;
 }

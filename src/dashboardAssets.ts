@@ -9,7 +9,7 @@ export const dashboardAssets = {
   familyProfile: '/dashboard-assets/generated/family-profile.webp',
   bottomMobileNav: '/dashboard-assets/generated/bottom-mobile-nav.png',
   mobileHero: '/dashboard-assets/generated/mobile-hero.webp',
-  backgroundTexture: '/dashboard-assets/generated/dashboard-texture.webp',
+  backgroundTexture: '/dashboard-assets/checklist/dashboard-background-texture.webp',
   checklist: '/dashboard-assets/generated/checklist-illustration.webp',
   budget: '/dashboard-assets/generated/budget-illustration.webp',
   researchAgent: '/dashboard-assets/generated/research-agent.webp',
