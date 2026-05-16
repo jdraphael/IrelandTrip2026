@@ -231,7 +231,7 @@ describe('Ireland trip app', () => {
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
-    await userEvent.click(screen.getByRole('button', { name: /Itinerary/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
 
     const paymentGroup = await screen.findByLabelText(/Recommended payment methods for day 5/i);
     expect(paymentGroup).toHaveTextContent('Visa');
