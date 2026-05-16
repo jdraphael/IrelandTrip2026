@@ -763,6 +763,11 @@ nav {
   color: #92400e;
 }
 
+.pill-neutral {
+  background: #eef2f7;
+  color: #334155;
+}
+
 .pill-danger {
   background: #fee2e2;
   color: var(--danger);
@@ -996,6 +1001,12 @@ textarea {
 .draft-card h4 {
   margin: 0;
   color: var(--ink);
+}
+
+.draft-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .draft-target {
@@ -1698,9 +1709,18 @@ textarea {
     bottom: 12px;
   }
 
+  .checklist-agent.itinerary-agent {
+    bottom: 92px;
+    z-index: 60;
+  }
+
   .agent-dock {
     width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
+  }
+
+  .checklist-agent .agent-dock {
+    max-height: calc(100vh - 116px);
   }
 }
 
@@ -3348,6 +3368,33 @@ textarea {
 .task-modal-grid textarea {
   min-height: 90px;
   resize: vertical;
+}
+
+.task-agent-panel {
+  border: 1px solid rgba(36, 50, 61, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(248, 250, 252, 0.76);
+}
+
+.task-agent-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.task-agent-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-agent-head p {
+  margin: 4px 0 0;
+  color: #5d6c64;
+  font-size: .82rem;
+  font-weight: 700;
 }
 
 .task-existing-field {

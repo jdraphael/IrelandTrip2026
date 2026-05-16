@@ -247,6 +247,27 @@ describe('research drafts', () => {
     expect(applyTaskDraft(original, addDraft).map((task) => task.id)).toEqual(['passports', 'reserve-rental-car']);
   });
 
+  it('applies approved checklist task removal drafts by id', () => {
+    const original: BookingTask[] = [
+      { id: 'passports', title: 'Check passport expiration dates', status: 'open', dueDate: '2026-08-01', category: 'Documents' },
+      { id: 'old-alert', title: 'Watch obsolete fare alert', status: 'open', dueDate: '2026-09-01', category: 'Flights' }
+    ];
+    const removeDraft: ResearchDraft = {
+      id: 'draft-remove-alert',
+      kind: 'task',
+      title: 'Remove obsolete fare alert',
+      createdAt: '2026-05-16T12:00:00Z',
+      status: 'draft',
+      payload: {
+        mode: 'remove',
+        taskId: 'old-alert'
+      }
+    };
+
+    expect(applyTaskDraft(original, removeDraft).map((task) => task.id)).toEqual(['passports']);
+    expect(original.map((task) => task.id)).toEqual(['passports', 'old-alert']);
+  });
+
   it('rejects invalid or missing draft targets without partial changes', () => {
     const itinerary: DayPlan[] = [
       { id: 'day-1', day: 1, title: 'Arrive', base: 'Dublin', dateLabel: 'June 2027', stops: [], notes: '' }

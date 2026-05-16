@@ -480,7 +480,8 @@ function ItineraryView({
   currentDayCount,
   onSave,
   onAsk,
-  onApplyDraft
+  onApplyDraft,
+  onDismissDraft
 }: {
   days: DayPlan[];
   sources: SourceLink[];
@@ -488,6 +489,7 @@ function ItineraryView({
   onSave: (updates: Partial<DayPlan>[]) => Promise<void>;
   onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
   onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
 }) {
   const [editing, setEditing] = useState<Record<string, string>>({});
 
@@ -532,6 +534,7 @@ function ItineraryView({
         currentDayCount={currentDayCount}
         onAsk={onAsk}
         onApplyDraft={onApplyDraft}
+        onDismissDraft={onDismissDraft}
       />
     </section>
   );
@@ -544,6 +547,7 @@ function draftTarget(draft: ResearchDraft) {
   if (draft.kind === 'itinerary' && payload.mode === 'replace') return 'Full itinerary replacement';
   if (draft.kind === 'itinerary') return typeof payload.dayId === 'string' ? `Itinerary · ${payload.dayId}` : 'Itinerary';
   if (draft.kind === 'budget') return typeof item?.label === 'string' ? `Budget · ${item.label}` : 'Budget';
+  if (draft.kind === 'task' && payload.mode === 'remove') return typeof payload.taskId === 'string' ? `Checklist removal · ${payload.taskId}` : 'Checklist removal';
   if (draft.kind === 'task') return typeof task?.title === 'string' ? `Checklist · ${task.title}` : 'Checklist';
   return 'Draft';
 }
@@ -553,8 +557,9 @@ function replacementDayCount(draft: ResearchDraft) {
   return payload.mode === 'replace' && Array.isArray(payload.days) ? payload.days.length : undefined;
 }
 
-function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: ResearchDraft; sources: SourceLink[]; currentDayCount: number; onApply: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
+function DraftReviewCard({ draft, sources, currentDayCount, onApply, onDismiss }: { draft: ResearchDraft; sources: SourceLink[]; currentDayCount: number; onApply: (draft: ResearchDraft) => Promise<ResearchDraft | void>; onDismiss: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
   const [applying, setApplying] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
   const proposedDayCount = replacementDayCount(draft);
   const apply = async () => {
     setApplying(true);
@@ -562,6 +567,14 @@ function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: 
       await onApply(draft);
     } finally {
       setApplying(false);
+    }
+  };
+  const dismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss(draft);
+    } finally {
+      setDismissing(false);
     }
   };
 
@@ -572,7 +585,7 @@ function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: 
           <span className="kicker">{draft.kind} draft</span>
           <h4>{draft.title}</h4>
         </div>
-        <StatusPill tone={draft.status === 'applied' ? 'good' : 'warn'}>{draft.status}</StatusPill>
+        <StatusPill tone={draft.status === 'applied' ? 'good' : draft.status === 'dismissed' ? 'neutral' : 'warn'}>{draft.status}</StatusPill>
       </div>
       <p className="draft-target">{draftTarget(draft)}</p>
       {proposedDayCount !== undefined && (
@@ -584,9 +597,16 @@ function DraftReviewCard({ draft, sources, currentDayCount, onApply }: { draft: 
       <p className="muted">{draft.summary || draftTarget(draft)}</p>
       <SourceChips ids={draft.sourceIds} sources={sources} />
       {draft.status === 'draft' ? (
-        <button className="button secondary" onClick={apply} disabled={applying}>
-          {applying ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />} Apply Draft
-        </button>
+        <div className="draft-card-actions">
+          <button className="button secondary" onClick={apply} disabled={applying || dismissing}>
+            {applying ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />} Apply Draft
+          </button>
+          <button className="button ghost compact" onClick={dismiss} disabled={applying || dismissing}>
+            {dismissing ? <Loader2 className="spin" size={15} /> : <X size={15} />} Dismiss Draft
+          </button>
+        </div>
+      ) : draft.status === 'dismissed' ? (
+        <p className="applied-note"><X size={15} /> Dismissed without changing saved planner data.</p>
       ) : (
         <p className="applied-note"><CheckCircle2 size={15} /> Applied to the saved planner.</p>
       )}
@@ -636,13 +656,15 @@ function ItineraryAgentBubble({
   sources,
   currentDayCount,
   onAsk,
-  onApplyDraft
+  onApplyDraft,
+  onDismissDraft
 }: {
   days: DayPlan[];
   sources: SourceLink[];
   currentDayCount: number;
   onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
   onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
 }) {
   const [open, setOpen] = useState(false);
   const [selectedDayId, setSelectedDayId] = useState('all');
@@ -680,6 +702,15 @@ function ItineraryAgentBubble({
       drafts: answer.drafts.map((item) => (item.id === draft.id ? { ...item, status: applied?.status || 'applied' } : item))
     })));
     return applied;
+  };
+
+  const dismissBubbleDraft = async (draft: ResearchDraft) => {
+    const dismissed = await onDismissDraft(draft);
+    setAnswers((current) => current.map((answer) => ({
+      ...answer,
+      drafts: answer.drafts.map((item) => (item.id === draft.id ? { ...item, status: dismissed?.status || 'dismissed' } : item))
+    })));
+    return dismissed;
   };
 
   return (
@@ -732,7 +763,7 @@ function ItineraryAgentBubble({
                 <AnswerText text={answer.answer} />
                 {answer.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
                 {answer.drafts.map((draft) => (
-                  <DraftReviewCard draft={draft} sources={[...sources, ...answer.sources]} currentDayCount={currentDayCount} onApply={applyBubbleDraft} key={draft.id} />
+                  <DraftReviewCard draft={draft} sources={[...sources, ...answer.sources]} currentDayCount={currentDayCount} onApply={applyBubbleDraft} onDismiss={dismissBubbleDraft} key={draft.id} />
                 ))}
               </article>
             ))}
@@ -743,7 +774,7 @@ function ItineraryAgentBubble({
   );
 }
 
-function ResearchView({ history, currentDayCount, onAsk, onApplyDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>; onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
+function ResearchView({ history, currentDayCount, onAsk, onApplyDraft, onDismissDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>; onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>; onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
   const [question, setQuestion] = useState('');
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -783,7 +814,7 @@ function ResearchView({ history, currentDayCount, onAsk, onApplyDraft }: { histo
               ))}
             </div>
             {answer.drafts.map((draft) => (
-              <DraftReviewCard draft={draft} sources={answer.sources} currentDayCount={currentDayCount} onApply={onApplyDraft} key={draft.id} />
+              <DraftReviewCard draft={draft} sources={answer.sources} currentDayCount={currentDayCount} onApply={onApplyDraft} onDismiss={onDismissDraft} key={draft.id} />
             ))}
           </article>
         ))}
@@ -989,6 +1020,18 @@ export default function App() {
     }
   };
 
+  const dismissDraft = async (draft: ResearchDraft) => {
+    try {
+      const dismissed = await api.dismissDraft(draft.id);
+      await refresh();
+      setError(`${draft.title} dismissed.`);
+      return dismissed;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to dismiss draft.');
+      return undefined;
+    }
+  };
+
   const checkSource = async (sourceUrl: string, sourceTitle?: string) => {
     await api.checkSource(sourceUrl, sourceTitle);
     const sources = await api.sources();
@@ -1114,11 +1157,11 @@ export default function App() {
         ) : (
           <>
             {tab === 'dashboard' && <Dashboard state={state} setTab={selectTab} />}
-            {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} />}
-            {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} />}
+            {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
+            {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
             {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
-            {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} />}
+            {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
           </>
         )}

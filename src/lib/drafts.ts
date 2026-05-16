@@ -1,4 +1,4 @@
-import type { BookingTask, BudgetItem, DayPlan, ItineraryDraftPayload, ItineraryPatchDraftPayload, ItineraryReplaceDraftPayload, PaymentTag, ResearchDraft, Stop } from '../types';
+import type { BookingTask, BudgetItem, ChecklistTaskDraftPayload, DayPlan, ItineraryDraftPayload, ItineraryPatchDraftPayload, ItineraryReplaceDraftPayload, PaymentTag, ResearchDraft, Stop } from '../types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object';
@@ -129,8 +129,8 @@ export function isBudgetDraftPayload(payload: unknown): payload is { item: Budge
   return isRecord(payload) && isBudgetItem(payload.item);
 }
 
-export function isTaskDraftPayload(payload: unknown): payload is { task: BookingTask } {
-  return isRecord(payload) && isBookingTask(payload.task);
+export function isTaskDraftPayload(payload: unknown): payload is ChecklistTaskDraftPayload {
+  return isRecord(payload) && (isBookingTask(payload.task) || (payload.mode === 'remove' && isNonEmptyString(payload.taskId)));
 }
 
 function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
@@ -196,5 +196,12 @@ export function applyTaskDraft(tasks: BookingTask[], draft: ResearchDraft): Book
   if (draft.kind !== 'task' || !isTaskDraftPayload(draft.payload)) {
     throw new Error('Invalid task draft payload');
   }
-  return upsertById(tasks, draft.payload.task);
+  const payload = draft.payload;
+  if ('mode' in payload && payload.mode === 'remove') {
+    return tasks.filter((task) => task.id !== payload.taskId).map((task) => ({ ...task }));
+  }
+  if ('task' in payload) {
+    return upsertById(tasks, payload.task);
+  }
+  throw new Error('Invalid task draft payload');
 }

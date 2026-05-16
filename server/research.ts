@@ -264,15 +264,16 @@ export async function answerResearchQuestion({ question, deep = false, context, 
     'Prioritize official attraction, airline, car rental, lodging, and government sources. Use broad travel sites only for color, never as the only source for prices, policies, or booking rules.',
     'Never claim a price, policy, opening time, or ticket requirement without a source. If current sources are unclear, say what must be verified.',
     'Return only valid JSON. Do not wrap it in Markdown. The JSON shape is {"answer":"plain language answer","warnings":["optional warning"],"drafts":[...]}.',
-    'Only include drafts when the user explicitly asks to add, update, move, budget, or create a task. Otherwise return "drafts": [].',
-    'Never remove saved budget or task records in drafts. Itinerary replacement drafts may replace the full day list only when the user explicitly asks to shorten, lengthen, renumber, or remove itinerary days.',
+    'Only include drafts when the user explicitly asks to add, update, remove, move, budget, or create a task. Otherwise return "drafts": [].',
+    'Never remove saved budget records in drafts. Only create a checklist task removal draft when the user explicitly asks to remove or delete an existing checklist item. Itinerary replacement drafts may replace the full day list only when the user explicitly asks to shorten, lengthen, renumber, or remove itinerary days.',
     'For small itinerary edits, use itinerary patch draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"mode":"patch","dayId":"day-5","patch":{"notes":"...","stops":[{"id":"kebab-id","name":"...","kind":"activity","latitude":52.1,"longitude":-7.1}],"paymentTags":[{"id":"visa","kind":"card","label":"Visa","network":"Visa","note":"Primary card"},{"id":"mastercard","kind":"card","label":"Mastercard","network":"Mastercard","note":"Backup card"},{"id":"cash","kind":"cash","label":"EUR 60-120","minCashEur":60,"maxCashEur":120,"note":"Parking, tips, and smaller vendors"}]}}}.',
     'For shortening, lengthening, renumbering, or removing itinerary days, use itinerary replacement draft shape: {"kind":"itinerary","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"mode":"replace","days":[complete DayPlan objects with ids day-1..day-N and sequential day numbers],"removedDayIds":["day-4"],"combinedDayIds":["day-3","day-4"]}}.',
     'A replacement itinerary must include complete DayPlan objects: id, day, title, dateLabel, base, optional route/driveTime/distanceMiles/lodging, stops array, notes, paymentTags, optional sourceIds. Travel days must include an airport stop.',
     'For itinerary drafts that change destinations, add destinations, add/remove days, or replace the itinerary, include refreshed paymentTags for each affected day. Payment tags must prefer Visa and Mastercard text labels, use daily EUR ranges rather than exact cash amounts, and recommend cash for parking, small vendors, markets, rural stops, tips, taxis, and backup situations.',
     'When the request comes from the itinerary bubble and asks to add a comment or note to a day, create an itinerary patch draft for that day. Preserve the existing notes and append or merge the new comment unless the user explicitly asks to replace the notes.',
     'Budget draft shape: {"kind":"budget","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"item":{"id":"kebab-id","category":"Transportation","label":"...","planned":100,"actual":0,"status":"researching","notes":"..."}}}.',
-    'Task draft shape: {"kind":"task","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"task":{"id":"kebab-id","title":"...","status":"open","dueDate":"YYYY-MM-DD","category":"Documents","notes":"..."}}}.',
+    'Task add/update draft shape: {"kind":"task","title":"...","summary":"...","sourceUrls":["https://..."],"payload":{"task":{"id":"kebab-id","title":"...","status":"open","dueDate":"YYYY-MM-DD","category":"Documents","notes":"..."}}}.',
+    'Task removal draft shape: {"kind":"task","title":"...","summary":"...","payload":{"mode":"remove","taskId":"existing-task-id"}}. Only use this shape for explicit checklist deletion requests.',
     'Use existing ids when updating existing days, budget items, tasks, or stops. Generate stable kebab-case ids for new budget items, tasks, or stops.',
     `Current itinerary JSON: ${JSON.stringify(itinerary.map((day) => ({ id: day.id, day: day.day, title: day.title, base: day.base, route: day.route, notes: day.notes, paymentTags: day.paymentTags, stops: day.stops.map((stop) => ({ id: stop.id, name: stop.name })) })))}.`,
     `Current budget JSON: ${JSON.stringify(budget.map((item) => ({ id: item.id, category: item.category, label: item.label, planned: item.planned, actual: item.actual, status: item.status })))}.`,
@@ -328,6 +329,21 @@ export async function markDraftAppliedInDatabase(db: TripDatabase, draftId: stri
   const updatedAnswers: ResearchAnswer[] = answers.map((answer) => ({
     ...answer,
     drafts: answer.drafts.map((draft) => (draft.id === draftId ? { ...draft, status: 'applied' as const } : draft))
+  }));
+  await db.saveResearchAnswers(updatedAnswers);
+
+  return updatedDrafts.find((draft) => draft.id === draftId) || updatedAnswers.flatMap((answer) => answer.drafts).find((draft) => draft.id === draftId);
+}
+
+export async function markDraftDismissedInDatabase(db: TripDatabase, draftId: string) {
+  const drafts = await db.getDrafts();
+  const updatedDrafts: ResearchDraft[] = drafts.map((item) => (item.id === draftId ? { ...item, status: 'dismissed' } : item));
+  await db.saveDrafts(updatedDrafts);
+
+  const answers = await db.getResearchAnswers();
+  const updatedAnswers: ResearchAnswer[] = answers.map((answer) => ({
+    ...answer,
+    drafts: answer.drafts.map((draft) => (draft.id === draftId ? { ...draft, status: 'dismissed' as const } : draft))
   }));
   await db.saveResearchAnswers(updatedAnswers);
 

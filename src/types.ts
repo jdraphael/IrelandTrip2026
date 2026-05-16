@@ -194,7 +194,14 @@ export interface TaskDraftPayload {
   task: BookingTask;
 }
 
-export type ResearchDraftPayload = ItineraryDraftPayload | BudgetDraftPayload | TaskDraftPayload | Record<string, unknown>;
+export interface TaskRemoveDraftPayload {
+  mode: 'remove';
+  taskId: string;
+}
+
+export type ChecklistTaskDraftPayload = TaskDraftPayload | TaskRemoveDraftPayload;
+
+export type ResearchDraftPayload = ItineraryDraftPayload | BudgetDraftPayload | ChecklistTaskDraftPayload | Record<string, unknown>;
 
 export interface ResearchDraft {
   id: string;

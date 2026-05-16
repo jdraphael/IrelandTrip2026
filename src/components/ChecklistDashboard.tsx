@@ -12,7 +12,9 @@ import {
   FileText,
   Home,
   Hotel,
+  Loader2,
   MapPinned,
+  MessageCircle,
   Plane,
   ShieldCheck,
   Sparkles,
@@ -24,7 +26,7 @@ import {
 import { api, type TasksResponse } from '../api';
 import { TravelerMenu, fallbackMembers } from './TravelerMenu';
 import { getTimeOfDayGreeting } from '../lib/greeting';
-import type { BookingTask, DayPlan, FamilyMember, Trip } from '../types';
+import type { BookingTask, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../types';
 
 type ChecklistCategory = NonNullable<BookingTask['displayCategory']>;
 type ChecklistSort = 'priority' | 'dueDate' | 'status' | 'category' | 'assigned' | 'progress';
@@ -34,8 +36,13 @@ interface ChecklistDashboardProps {
   itinerary: DayPlan[];
   tasks?: TasksResponse;
   familyMembers?: FamilyMember[];
+  sources: SourceLink[];
+  currentDayCount: number;
   onSave: (items: Partial<BookingTask>[]) => Promise<void>;
   onSaveFamilyMembers: (members: FamilyMember[]) => Promise<void>;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
 }
 
 const categories: ChecklistCategory[] = ['Flights & Travel', 'Lodging & Stays', 'Driving in Ireland', 'Family Prep', 'Experiences'];
@@ -341,7 +348,178 @@ async function fileToBase64(file: File) {
   return btoa(binary);
 }
 
-function TaskDetailModal({ task, onClose, onSave }: { task: ReturnType<typeof normalizeTask>; onClose: () => void; onSave: (items: Partial<BookingTask>[]) => Promise<void> }) {
+function AnswerText({ text }: { text: string }) {
+  return (
+    <div className="answer-text">
+      {text.replace(/\*\*/g, '').split(/\n{2,}/).map((block, index) => (
+        <p key={`${block.slice(0, 18)}-${index}`}>{block.replace(/^- /gm, '• ')}</p>
+      ))}
+    </div>
+  );
+}
+
+function draftTarget(draft: ResearchDraft) {
+  const payload = draft.payload as Record<string, unknown>;
+  const task = payload.task && typeof payload.task === 'object' ? payload.task as Record<string, unknown> : undefined;
+  if (draft.kind === 'itinerary' && payload.mode === 'replace') return 'Full itinerary replacement';
+  if (draft.kind === 'itinerary') return typeof payload.dayId === 'string' ? `Itinerary · ${payload.dayId}` : 'Itinerary';
+  if (draft.kind === 'task' && payload.mode === 'remove') return typeof payload.taskId === 'string' ? `Checklist removal · ${payload.taskId}` : 'Checklist removal';
+  if (draft.kind === 'task') return typeof task?.title === 'string' ? `Checklist · ${task.title}` : 'Checklist';
+  if (draft.kind === 'budget') return 'Budget';
+  return 'Draft';
+}
+
+function replacementDayCount(draft: ResearchDraft) {
+  const payload = draft.payload as Record<string, unknown>;
+  return payload.mode === 'replace' && Array.isArray(payload.days) ? payload.days.length : undefined;
+}
+
+function SourceChips({ ids, sources }: { ids?: string[]; sources: SourceLink[] }) {
+  const lookup = new Map(sources.map((source) => [source.id, source]));
+  const selected = (ids || []).map((id) => lookup.get(id)).filter(Boolean) as SourceLink[];
+  if (selected.length === 0) return null;
+  return (
+    <div className="source-row">
+      {selected.map((source) => (
+        <a className="source-chip" href={source.url} target="_blank" rel="noreferrer" key={source.id}>
+          {source.title} <ExternalLink size={13} />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function DraftReviewCard({
+  draft,
+  sources,
+  currentDayCount,
+  onApply,
+  onDismiss
+}: {
+  draft: ResearchDraft;
+  sources: SourceLink[];
+  currentDayCount: number;
+  onApply: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismiss: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
+  const [applying, setApplying] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+  const proposedDayCount = replacementDayCount(draft);
+  const apply = async () => {
+    setApplying(true);
+    try {
+      await onApply(draft);
+    } finally {
+      setApplying(false);
+    }
+  };
+  const dismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss(draft);
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  return (
+    <div className="draft-card">
+      <div className="draft-card-head">
+        <div>
+          <span className="kicker">{draft.kind} draft</span>
+          <h4>{draft.title}</h4>
+        </div>
+        <span className={`pill ${draft.status === 'applied' ? 'pill-good' : draft.status === 'dismissed' ? 'pill-neutral' : 'pill-warn'}`}>{draft.status}</span>
+      </div>
+      <p className="draft-target">{draftTarget(draft)}</p>
+      {proposedDayCount !== undefined && (
+        <div className="replace-warning">
+          <strong>{currentDayCount} days -&gt; {proposedDayCount} days</strong>
+          <span>This will replace all itinerary days.</span>
+        </div>
+      )}
+      <p className="muted">{draft.summary || draftTarget(draft)}</p>
+      <SourceChips ids={draft.sourceIds} sources={sources} />
+      {draft.status === 'draft' ? (
+        <div className="draft-card-actions">
+          <button className="button secondary" type="button" onClick={apply} disabled={applying || dismissing}>
+            {applying ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />} Apply Draft
+          </button>
+          <button className="button ghost compact" type="button" onClick={dismiss} disabled={applying || dismissing}>
+            {dismissing ? <Loader2 className="spin" size={15} /> : <X size={15} />} Dismiss Draft
+          </button>
+        </div>
+      ) : draft.status === 'dismissed' ? (
+        <p className="applied-note"><X size={15} /> Dismissed without changing saved planner data.</p>
+      ) : (
+        <p className="applied-note"><CheckCircle2 size={15} /> Applied to the saved planner.</p>
+      )}
+    </div>
+  );
+}
+
+function checklistAgentContext(items: ReturnType<typeof normalizeTask>[], itinerary: DayPlan[]) {
+  const taskDirectory = items.map((task) => ({
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    dueDate: task.dueDate,
+    category: task.category,
+    displayCategory: task.displayCategory,
+    priority: task.priority
+  }));
+  const dayDirectory = itinerary.map((day) => ({ id: day.id, day: day.day, title: day.title, base: day.base, route: day.route }));
+  return [
+    'Request surface: Checklist module persistent agent bubble.',
+    'The user may ask questions or ask to add, update, or remove checklist items. Saved-data edits must be returned as reviewable task drafts, never direct mutations.',
+    'For explicit removal requests, create a task draft with payload {"mode":"remove","taskId":"existing-task-id"}.',
+    'For task additions or updates, create a task draft with a complete payload.task object using existing ids for updates and stable kebab-case ids for new items.',
+    'If the checklist change implies itinerary notes, include a separate itinerary draft for review.',
+    `Visible checklist task directory: ${JSON.stringify(taskDirectory)}.`,
+    `Visible itinerary day directory: ${JSON.stringify(dayDirectory)}.`
+  ].join('\n');
+}
+
+function taskAgentContext(task: ReturnType<typeof normalizeTask>, draft: Partial<BookingTask>, itinerary: DayPlan[]) {
+  return [
+    'Request surface: Checklist task detail modal persistent agent.',
+    `Selected checklist task: ${task.title} (${task.id}). All task changes must be returned as reviewable task drafts, never direct mutations.`,
+    'The agent should help fill decisionSummary, detailedNotes, budgetEstimate, planningFields, detailSubtasks, detailLinks, and attachments metadata only when useful.',
+    'If asked to create itinerary content, include a separate itinerary draft using an existing day id.',
+    `Current selected task JSON: ${JSON.stringify(task)}.`,
+    `Unsaved modal draft JSON: ${JSON.stringify(draft)}.`,
+    `Visible itinerary day directory: ${JSON.stringify(itinerary.map((day) => ({ id: day.id, day: day.day, title: day.title, base: day.base, route: day.route, notes: day.notes.slice(0, 220) })))}.`
+  ].join('\n');
+}
+
+function mergeAnswerDraftStatus(answers: ResearchAnswer[], draft: ResearchDraft, fallbackStatus: ResearchDraft['status']) {
+  return answers.map((answer) => ({
+    ...answer,
+    drafts: answer.drafts.map((item) => (item.id === draft.id ? { ...item, status: draft.status || fallbackStatus } : item))
+  }));
+}
+
+function TaskDetailModal({
+  task,
+  itinerary,
+  sources,
+  currentDayCount,
+  onClose,
+  onSave,
+  onAsk,
+  onApplyDraft,
+  onDismissDraft
+}: {
+  task: ReturnType<typeof normalizeTask>;
+  itinerary: DayPlan[];
+  sources: SourceLink[];
+  currentDayCount: number;
+  onClose: () => void;
+  onSave: (items: Partial<BookingTask>[]) => Promise<void>;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
   const [draft, setDraft] = useState<Partial<BookingTask>>({
     id: task.id,
     decisionSummary: task.decisionSummary || '',
@@ -354,7 +532,10 @@ function TaskDetailModal({ task, onClose, onSave }: { task: ReturnType<typeof no
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [draftMessage, setDraftMessage] = useState('');
+  const [agentPrompt, setAgentPrompt] = useState('');
+  const [agentAnswers, setAgentAnswers] = useState<ResearchAnswer[]>([]);
+  const [agentBusy, setAgentBusy] = useState(false);
+  const [agentError, setAgentError] = useState('');
   const labels = fieldLabels(task);
   const planningFields = draft.planningFields || {};
   const attachments = draft.attachments || [];
@@ -384,10 +565,45 @@ function TaskDetailModal({ task, onClose, onSave }: { task: ReturnType<typeof no
     }
   };
 
+  const askTaskAgent = async (question = agentPrompt.trim()) => {
+    if (!question) return;
+    setAgentBusy(true);
+    setAgentError('');
+    try {
+      const answer = await onAsk(question, false, taskAgentContext(task, draft, itinerary));
+      setAgentAnswers((current) => [answer, ...current].slice(0, 4));
+      setAgentPrompt('');
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : 'Unable to reach the checklist item agent.');
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
   const createDraft = async () => {
     const summary = draft.decisionSummary || draft.detailedNotes || `Use checklist details from ${task.title}.`;
-    const created = await api.createTaskItineraryDraft(task.id, summary);
-    setDraftMessage(`${created.title} created for review.`);
+    setAgentBusy(true);
+    setAgentError('');
+    try {
+      const answer = await api.createTaskItineraryDraft(task.id, summary);
+      setAgentAnswers((current) => [answer, ...current].slice(0, 4));
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : 'Unable to create itinerary draft.');
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
+  const applyModalDraft = async (item: ResearchDraft) => {
+    const applied = await onApplyDraft(item);
+    setAgentAnswers((current) => mergeAnswerDraftStatus(current, { ...item, status: applied?.status || 'applied' }, 'applied'));
+    return applied;
+  };
+
+  const dismissModalDraft = async (item: ResearchDraft) => {
+    const dismissed = await onDismissDraft(item);
+    setAgentAnswers((current) => mergeAnswerDraftStatus(current, { ...item, status: dismissed?.status || 'dismissed' }, 'dismissed'));
+    return dismissed;
   };
 
   return (
@@ -460,9 +676,41 @@ function TaskDetailModal({ task, onClose, onSave }: { task: ReturnType<typeof no
             ))}
           </div>
         </section>
-        {draftMessage && <p className="task-draft-message">{draftMessage}</p>}
+        <section className="task-modal-section task-agent-panel">
+          <div className="task-agent-head">
+            <div>
+              <h3><Sparkles size={15} /> Checklist item agent</h3>
+              <p>Ask for proposed edits to this item. Changes stay in review until applied.</p>
+            </div>
+          </div>
+          <label className="agent-field">
+            <span>Task agent prompt</span>
+            <textarea
+              value={agentPrompt}
+              onChange={(event) => setAgentPrompt(event.target.value)}
+              placeholder="Fill missing fields, update notes, add subtasks, or prepare an itinerary draft..."
+              aria-label="Task agent prompt"
+            />
+          </label>
+          <button className="button primary full" type="button" onClick={() => void askTaskAgent()} disabled={agentBusy || !agentPrompt.trim()}>
+            {agentBusy ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />} Ask Task Agent
+          </button>
+          {agentError && <p className="warning">{agentError}</p>}
+          <div className="agent-thread">
+            {agentAnswers.map((answer) => (
+              <article className="agent-thread-card" key={answer.id}>
+                <h4>{answer.question}</h4>
+                <AnswerText text={answer.answer} />
+                {answer.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+                {answer.drafts.map((item) => (
+                  <DraftReviewCard draft={item} sources={[...sources, ...answer.sources]} currentDayCount={currentDayCount} onApply={applyModalDraft} onDismiss={dismissModalDraft} key={item.id} />
+                ))}
+              </article>
+            ))}
+          </div>
+        </section>
         <footer className="task-modal-actions">
-          <button className="checklist-outline-button" type="button" onClick={createDraft}>Create itinerary draft</button>
+          <button className="checklist-outline-button" type="button" onClick={createDraft} disabled={agentBusy}>{agentBusy ? 'Creating...' : 'Create itinerary draft'}</button>
           <button className="checklist-card-action" type="button" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save details'}</button>
         </footer>
       </section>
@@ -541,7 +789,110 @@ function RightWidgets({ items, familyMembers }: { items: ReturnType<typeof norma
   );
 }
 
-export function ChecklistDashboard({ trip, itinerary, tasks, familyMembers, onSave, onSaveFamilyMembers }: ChecklistDashboardProps) {
+function ChecklistAgentBubble({
+  items,
+  itinerary,
+  sources,
+  currentDayCount,
+  onAsk,
+  onApplyDraft,
+  onDismissDraft
+}: {
+  items: ReturnType<typeof normalizeTask>[];
+  itinerary: DayPlan[];
+  sources: SourceLink[];
+  currentDayCount: number;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [deep, setDeep] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [answers, setAnswers] = useState<ResearchAnswer[]>([]);
+  const [agentError, setAgentError] = useState('');
+
+  const submit = async () => {
+    if (!prompt.trim()) return;
+    setBusy(true);
+    setAgentError('');
+    try {
+      const answer = await onAsk(prompt.trim(), deep, checklistAgentContext(items, itinerary));
+      setAnswers((current) => [answer, ...current].slice(0, 4));
+      setPrompt('');
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : 'Unable to reach the checklist agent.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyBubbleDraft = async (draft: ResearchDraft) => {
+    const applied = await onApplyDraft(draft);
+    setAnswers((current) => mergeAnswerDraftStatus(current, { ...draft, status: applied?.status || 'applied' }, 'applied'));
+    return applied;
+  };
+
+  const dismissBubbleDraft = async (draft: ResearchDraft) => {
+    const dismissed = await onDismissDraft(draft);
+    setAnswers((current) => mergeAnswerDraftStatus(current, { ...draft, status: dismissed?.status || 'dismissed' }, 'dismissed'));
+    return dismissed;
+  };
+
+  return (
+    <div className={`checklist-agent itinerary-agent ${open ? 'open' : ''}`}>
+      {!open && (
+        <button className="agent-fab" onClick={() => setOpen(true)} aria-label="Open checklist agent" type="button">
+          <MessageCircle size={22} />
+          <span>Checklist Agent</span>
+        </button>
+      )}
+      {open && (
+        <section className="agent-dock" aria-label="Checklist agent">
+          <div className="agent-dock-head">
+            <div>
+              <span className="kicker">Checklist copilot</span>
+              <h3>Add, update, or remove items</h3>
+            </div>
+            <button className="icon-button" onClick={() => setOpen(false)} aria-label="Close checklist agent" type="button">
+              <X size={18} />
+            </button>
+          </div>
+          <label className="agent-field">
+            <span>Checklist agent prompt</span>
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="Add a packing item, update a due date, remove an obsolete task, or draft itinerary notes..."
+              aria-label="Checklist agent prompt"
+            />
+          </label>
+          <label className="checkbox compact-check"><input type="checkbox" checked={deep} onChange={(event) => setDeep(event.target.checked)} /> Deeper research</label>
+          <button className="button primary full" onClick={submit} disabled={busy || !prompt.trim()} type="button">
+            {busy ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />} Ask Checklist Agent
+          </button>
+          {agentError && <p className="warning">{agentError}</p>}
+          <div className="agent-thread">
+            {answers.length === 0 && <p className="muted">Try: "Add a packing task for rain jackets before Galway."</p>}
+            {answers.map((answer) => (
+              <article className="agent-thread-card" key={answer.id}>
+                <h4>{answer.question}</h4>
+                <AnswerText text={answer.answer} />
+                {answer.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+                {answer.drafts.map((draft) => (
+                  <DraftReviewCard draft={draft} sources={[...sources, ...answer.sources]} currentDayCount={currentDayCount} onApply={applyBubbleDraft} onDismiss={dismissBubbleDraft} key={draft.id} />
+                ))}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+export function ChecklistDashboard({ trip, itinerary, tasks, familyMembers, sources, currentDayCount, onSave, onSaveFamilyMembers, onAsk, onApplyDraft, onDismissDraft }: ChecklistDashboardProps) {
   const [activeFilter, setActiveFilter] = useState<'All Items' | ChecklistCategory>('All Items');
   const [sort, setSort] = useState<ChecklistSort>('priority');
   const [selectedTask, setSelectedTask] = useState<ReturnType<typeof normalizeTask> | undefined>();
@@ -588,7 +939,8 @@ export function ChecklistDashboard({ trip, itinerary, tasks, familyMembers, onSa
         </section>
         <RightWidgets items={items} familyMembers={familyMembers} />
       </div>
-      {selectedTask && <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(undefined)} onSave={onSave} />}
+      <ChecklistAgentBubble items={items} itinerary={itinerary} sources={sources} currentDayCount={currentDayCount} onAsk={onAsk} onApplyDraft={onApplyDraft} onDismissDraft={onDismissDraft} />
+      {selectedTask && <TaskDetailModal task={selectedTask} itinerary={itinerary} sources={sources} currentDayCount={currentDayCount} onClose={() => setSelectedTask(undefined)} onSave={onSave} onAsk={onAsk} onApplyDraft={onApplyDraft} onDismissDraft={onDismissDraft} />}
     </motion.section>
   );
 }
