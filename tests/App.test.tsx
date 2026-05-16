@@ -259,6 +259,130 @@ describe('Ireland trip app', () => {
     }));
   });
 
+  it('opens a checklist agent bubble, shows reviewable recommendations, and can deny a draft', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel day', dateLabel: 'June 2027', base: 'In flight', stops: [], notes: 'Go' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json(richTasksResponse));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') {
+        return Promise.resolve(Response.json({
+          id: 'answer-checklist',
+          question: 'Add a packing task for rain jackets.',
+          answer: 'I prepared a checklist change for review.',
+          createdAt: '2026-05-16T12:00:00Z',
+          sources: [],
+          warnings: [],
+          drafts: [
+            {
+              id: 'draft-checklist',
+              kind: 'task',
+              title: 'Add rain jacket packing task',
+              summary: 'Adds a family prep task for waterproof jackets.',
+              createdAt: '2026-05-16T12:00:00Z',
+              status: 'draft',
+              payload: { task: { id: 'pack-rain-jackets', title: 'Pack waterproof jackets', status: 'open', dueDate: '2027-05-01', category: 'Packing' } }
+            }
+          ]
+        }));
+      }
+      if (url.endsWith('/api/research/drafts/draft-checklist/dismiss')) {
+        return Promise.resolve(Response.json({
+          id: 'draft-checklist',
+          kind: 'task',
+          title: 'Add rain jacket packing task',
+          summary: 'Adds a family prep task for waterproof jackets.',
+          createdAt: '2026-05-16T12:00:00Z',
+          status: 'dismissed',
+          payload: { task: { id: 'pack-rain-jackets', title: 'Pack waterproof jackets', status: 'open', dueDate: '2027-05-01', category: 'Packing' } }
+        }));
+      }
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /Open checklist agent/i }));
+    await userEvent.type(screen.getByLabelText(/Checklist agent prompt/i), 'Add a packing task for rain jackets.');
+    await userEvent.click(screen.getByRole('button', { name: /Ask Checklist Agent/i }));
+
+    expect(await screen.findByText('I prepared a checklist change for review.')).toBeInTheDocument();
+    expect(screen.getByText('Add rain jacket packing task')).toBeInTheDocument();
+    const researchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
+    expect(JSON.parse((researchCall?.[1] as RequestInit).body as string).context).toContain('Request surface: Checklist module persistent agent bubble');
+
+    await userEvent.click(screen.getByRole('button', { name: /Dismiss Draft/i }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/research/drafts/draft-checklist/dismiss', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('uses the task modal agent to create OpenAI-backed itinerary and task field drafts', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel day', dateLabel: 'June 2027', base: 'In flight', stops: [], notes: 'Go' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json(richTasksResponse));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/tasks/task-book-flights/itinerary-draft') && init?.method === 'POST') {
+        return Promise.resolve(Response.json({
+          id: 'answer-task-draft',
+          question: 'Create itinerary draft from checklist item: Book flights and seats together',
+          answer: 'I filled the checklist fields and prepared itinerary notes for approval.',
+          createdAt: '2026-05-16T12:00:00Z',
+          sources: [],
+          warnings: [],
+          drafts: [
+            {
+              id: 'draft-task-fields',
+              kind: 'task',
+              title: 'Fill flight planning fields',
+              summary: 'Adds the missing flight-planning details to the checklist item.',
+              createdAt: '2026-05-16T12:00:00Z',
+              status: 'draft',
+              payload: { task: { id: 'task-book-flights', title: 'Book flights and seats together', status: 'open', dueDate: '2026-09-15', category: 'Flights', decisionSummary: 'Book a one-stop route with five adjacent seats.' } }
+            },
+            {
+              id: 'draft-itinerary-flight',
+              kind: 'itinerary',
+              title: 'Add flight details to travel day',
+              summary: 'Adds the selected flight plan to Day 1.',
+              createdAt: '2026-05-16T12:00:00Z',
+              status: 'draft',
+              payload: { mode: 'patch', dayId: 'day-1', patch: { notes: 'Go. Flight plan: five adjacent seats.' } }
+            }
+          ]
+        }));
+      }
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /View Options/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /Create itinerary draft/i }));
+
+    expect(await screen.findByText('I filled the checklist fields and prepared itinerary notes for approval.')).toBeInTheDocument();
+    expect(screen.getByText('Fill flight planning fields')).toBeInTheDocument();
+    expect(screen.getByText('Add flight details to travel day')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/tasks/task-book-flights/itinerary-draft', expect.objectContaining({ method: 'POST' }));
+  });
+
   it('labels route progress bubbles as pending before travel starts', async () => {
     vi.stubGlobal('fetch', stubChecklistApp());
 

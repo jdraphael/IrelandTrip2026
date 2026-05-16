@@ -52,11 +52,12 @@ export const api = {
   saveBudget: (items: Partial<BudgetItem>[]) => request<BudgetResponse>('/api/budget', { method: 'PATCH', body: JSON.stringify(items) }),
   tasks: () => request<TasksResponse>('/api/tasks'),
   saveTasks: (items: Partial<BookingTask>[]) => request<TasksResponse>('/api/tasks', { method: 'PATCH', body: JSON.stringify(items) }),
-  createTaskItineraryDraft: (id: string, summary: string) => request<ResearchDraft>(`/api/tasks/${id}/itinerary-draft`, { method: 'POST', body: JSON.stringify({ summary }) }),
+  createTaskItineraryDraft: (id: string, summary: string) => request<ResearchAnswer>(`/api/tasks/${id}/itinerary-draft`, { method: 'POST', body: JSON.stringify({ summary }) }),
   uploadTaskAttachment: (payload: { fileName: string; contentType: string; dataBase64: string; note?: string }) => request<TaskAttachment>('/api/uploads', { method: 'POST', body: JSON.stringify(payload) }),
   sources: () => request<SourcesResponse>('/api/sources'),
   checkSource: (url: string, title?: string) => request<SourceLink>('/api/sources/check', { method: 'POST', body: JSON.stringify({ url, title }) }),
   researchHistory: () => request<ResearchAnswer[]>('/api/research'),
   askResearch: (question: string, deep = false, context?: string) => request<ResearchAnswer>('/api/research', { method: 'POST', body: JSON.stringify({ question, deep, context }) }),
-  applyDraft: (id: string) => request<ResearchDraft>(`/api/research/drafts/${id}/apply`, { method: 'POST' })
+  applyDraft: (id: string) => request<ResearchDraft>(`/api/research/drafts/${id}/apply`, { method: 'POST' }),
+  dismissDraft: (id: string) => request<ResearchDraft>(`/api/research/drafts/${id}/dismiss`, { method: 'POST' })
 };

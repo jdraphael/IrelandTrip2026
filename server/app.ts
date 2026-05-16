@@ -7,7 +7,7 @@ import { calculateBudgetSummary } from '../src/lib/budget.js';
 import { summarizeTasks } from '../src/lib/tasks.js';
 import { applyBudgetDraft, applyResearchDraft, applyTaskDraft } from '../src/lib/drafts.js';
 import { summarizeSources } from '../src/lib/sources.js';
-import { answerResearchQuestion, findDraftInDatabase, markDraftAppliedInDatabase } from './research.js';
+import { answerResearchQuestion, findDraftInDatabase, markDraftAppliedInDatabase, markDraftDismissedInDatabase } from './research.js';
 import { checkSource } from './sourceCheck.js';
 import type { TripDatabase } from './tripDatabase.js';
 
@@ -231,39 +231,27 @@ export function createApp({
       return;
     }
     const itinerary = await db.getItinerary();
-    const targetDay = itinerary[0];
-    if (!targetDay) {
+    if (itinerary.length === 0) {
       response.status(400).json({ error: 'No itinerary day is available for a draft' });
       return;
     }
-    const draft = {
-      id: `draft-${Date.now()}-${crypto.randomUUID()}`,
-      kind: 'itinerary' as const,
-      title: `Review itinerary notes for ${task.title}`,
-      summary: input.summary,
-      createdAt: new Date().toISOString(),
-      status: 'draft' as const,
-      payload: {
-        mode: 'patch' as const,
-        dayId: targetDay.id,
-        patch: {
-          notes: `${targetDay.notes}\n\nChecklist detail from "${task.title}": ${input.summary}`
-        }
-      },
-      sourceIds: [task.id]
-    };
-    const answer = {
-      id: `answer-${Date.now()}`,
-      question: `Create itinerary draft from checklist item: ${task.title}`,
-      answer: `Created a reviewable itinerary draft from checklist details for ${task.title}.`,
-      createdAt: draft.createdAt,
-      sources: [],
-      drafts: [draft],
-      warnings: []
-    };
-    await db.saveDrafts([draft, ...(await db.getDrafts())]);
-    await db.saveResearchAnswers([answer, ...(await db.getResearchAnswers())]);
-    response.json(draft);
+    const context = [
+      'Request surface: Checklist task detail modal Create itinerary draft action.',
+      'Create reviewable drafts only; do not directly mutate saved data.',
+      'Return at least one task draft that fills or improves missing checklist detail fields for the selected task, and one itinerary draft that adds the task decision to the most relevant itinerary day.',
+      'Use an existing itinerary day id when creating the itinerary draft. Do not create a full replacement itinerary unless the task explicitly requires it.',
+      `Selected checklist task JSON: ${JSON.stringify(task)}.`,
+      `User-entered task summary: ${input.summary}.`,
+      `Visible itinerary day directory: ${JSON.stringify(itinerary.map((day) => ({ id: day.id, day: day.day, title: day.title, base: day.base, route: day.route, notes: day.notes.slice(0, 220) })))}.`
+    ].join('\n');
+    const answer = await answerResearchQuestion({
+      question: `Create itinerary draft from checklist item: ${task.title}. ${input.summary}`,
+      deep: false,
+      context,
+      apiKey: openAiApiKey,
+      db
+    });
+    response.json(answer);
   }));
 
   app.get('/api/sources', asyncRoute(async (_request, response) => {
@@ -324,6 +312,17 @@ export function createApp({
 
     const applied = await markDraftAppliedInDatabase(db, draftId);
     response.json(applied);
+  }));
+
+  app.post('/api/research/drafts/:id/dismiss', asyncRoute(async (request, response) => {
+    const draftId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+    const draft = await findDraftInDatabase(db, draftId);
+    if (!draft) {
+      response.status(404).json({ error: 'Draft not found' });
+      return;
+    }
+    const dismissed = await markDraftDismissedInDatabase(db, draftId);
+    response.json(dismissed);
   }));
 
   app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {

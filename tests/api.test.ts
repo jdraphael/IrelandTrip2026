@@ -149,7 +149,48 @@ describe('trip agent API', () => {
 
   it('creates a reviewable itinerary draft from task details', async () => {
     const db = createTestDatabase();
-    const app = createApp({ db });
+    openAiMock.responsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        answer: 'I filled the checklist planning fields and prepared an itinerary note for review.',
+        warnings: [],
+        drafts: [
+          {
+            kind: 'task',
+            title: 'Fill flight checklist details',
+            summary: 'Adds the missing planning fields from the flight notes.',
+            payload: {
+              task: {
+                id: 'task-book-flights',
+                title: 'Book flights and seats together',
+                status: 'open',
+                dueDate: '2026-09-15',
+                category: 'Flights',
+                decisionSummary: 'Target a one-stop itinerary with all five seats together.',
+                detailedNotes: 'Confirm fare class, seat map, and baggage rules before purchase.',
+                planningFields: {
+                  'Preferred airlines': 'Delta or Aer Lingus',
+                  'Seating priority': 'Five adjacent main-cabin seats',
+                  'Timing window': 'Depart June 18 and return June 30'
+                }
+              }
+            }
+          },
+          {
+            kind: 'itinerary',
+            title: 'Add flight details to travel days',
+            summary: 'Adds flight planning notes to the itinerary once approved.',
+            payload: {
+              mode: 'patch',
+              dayId: 'day-1',
+              patch: {
+                notes: 'Travel day. Flight plan: one-stop itinerary with all five seats together.'
+              }
+            }
+          }
+        ]
+      })
+    });
+    const app = createApp({ db, openAiApiKey: 'test-key' });
 
     const response = await request(app)
       .post('/api/tasks/task-book-flights/itinerary-draft')
@@ -157,21 +198,67 @@ describe('trip agent API', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      kind: 'itinerary',
-      title: 'Review itinerary notes for Book flights and seats together',
-      status: 'draft',
-      payload: {
-        mode: 'patch',
-        dayId: 'day-1',
-        patch: expect.objectContaining({
-          notes: expect.stringContaining('Add confirmed flight booking notes')
-        })
-      },
-      sourceIds: ['task-book-flights']
+      answer: 'I filled the checklist planning fields and prepared an itinerary note for review.',
+      drafts: [
+        {
+          kind: 'task',
+          title: 'Fill flight checklist details',
+          status: 'draft',
+          payload: {
+            task: expect.objectContaining({
+              id: 'task-book-flights',
+              decisionSummary: 'Target a one-stop itinerary with all five seats together.'
+            })
+          }
+        },
+        {
+          kind: 'itinerary',
+          title: 'Add flight details to travel days',
+          status: 'draft',
+          payload: {
+            mode: 'patch',
+            dayId: 'day-1'
+          }
+        }
+      ]
     });
+    expect(openAiMock.responsesCreate).toHaveBeenCalled();
 
     const research = await request(app).get('/api/research').expect(200);
-    expect(research.body[0].drafts[0].id).toBe(response.body.id);
+    expect(research.body[0].drafts).toHaveLength(2);
+  });
+
+  it('dismisses a draft without applying its checklist mutation', async () => {
+    const db = createTestDatabase();
+    const app = createApp({ db, openAiApiKey: 'test-key' });
+
+    openAiMock.responsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        answer: 'I prepared a removal for review.',
+        warnings: [],
+        drafts: [
+          {
+            kind: 'task',
+            title: 'Remove flight task',
+            summary: 'Removes the flight task from the checklist.',
+            payload: { mode: 'remove', taskId: 'task-book-flights' }
+          }
+        ]
+      })
+    });
+
+    const research = await request(app)
+      .post('/api/research')
+      .send({ question: 'Remove the flight task.' })
+      .expect(200);
+
+    const dismissed = await request(app)
+      .post(`/api/research/drafts/${research.body.drafts[0].id}/dismiss`)
+      .expect(200);
+
+    expect(dismissed.body).toMatchObject({ status: 'dismissed', title: 'Remove flight task' });
+    const tasks = await request(app).get('/api/tasks').expect(200);
+    expect(tasks.body.items.some((task: { id: string }) => task.id === 'task-book-flights')).toBe(true);
   });
 
   it('returns a clear research configuration message when no OpenAI key is configured', async () => {
