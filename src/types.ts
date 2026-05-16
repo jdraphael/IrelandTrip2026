@@ -9,6 +9,8 @@ export interface Trip {
   title: string;
   month: string;
   year: number;
+  startDate?: string;
+  endDate?: string;
   travelers: number;
   adults: number;
   children: number;
@@ -24,6 +26,7 @@ export interface FamilyMember {
   id: string;
   name: string;
   role: 'parent' | 'child';
+  age?: number;
   avatarKey?: string;
   taskColor?: string;
 }
@@ -112,6 +115,35 @@ export interface BookingTask {
   subtasksDone?: number;
   assignedTo?: string[];
   familyImpact?: string;
+  decisionSummary?: string;
+  detailedNotes?: string;
+  budgetEstimate?: number;
+  planningFields?: Record<string, string>;
+  detailSubtasks?: ChecklistSubtask[];
+  detailLinks?: TaskDetailLink[];
+  attachments?: TaskAttachment[];
+}
+
+export interface ChecklistSubtask {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface TaskDetailLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  name: string;
+  url: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+  note?: string;
 }
 
 export interface TaskSummary {

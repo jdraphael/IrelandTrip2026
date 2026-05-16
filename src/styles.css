@@ -322,9 +322,13 @@ nav {
 .traveler-editor-row,
 .traveler-add-row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 90px;
+  grid-template-columns: 34px minmax(0, 1fr) 68px 90px;
   gap: 8px;
   align-items: center;
+}
+
+.traveler-add-row {
+  grid-template-columns: minmax(0, 1fr) 42px;
 }
 
 .traveler-avatar,
@@ -2615,7 +2619,7 @@ textarea {
   height: 74px;
   border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
-  background: url("/dashboard-assets/checklist/family-hub-card.webp") center/cover;
+  background: url("/dashboard-assets/checklist/raphael-family-hub.png") center/cover;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
@@ -2982,6 +2986,11 @@ textarea {
   box-shadow: 0 0 0 5px rgba(11, 93, 59, 0.12), 0 8px 18px rgba(36, 50, 61, 0.1);
 }
 
+.checklist-route-stop.active .route-node {
+  border-color: #d9b95b;
+  box-shadow: 0 0 0 5px rgba(217, 185, 91, 0.18), 0 8px 18px rgba(36, 50, 61, 0.1);
+}
+
 .checklist-route-stop strong {
   font-size: .78rem;
 }
@@ -3268,6 +3277,155 @@ textarea {
   font-weight: 850;
 }
 
+.task-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 22, 17, 0.54);
+  backdrop-filter: blur(8px);
+}
+
+.task-detail-modal {
+  display: grid;
+  gap: 18px;
+  width: min(920px, 100%);
+  max-height: min(820px, 92vh);
+  overflow: auto;
+  border-radius: 18px;
+  padding: 22px;
+  background: #fffdf8;
+  box-shadow: 0 28px 90px rgba(8, 22, 17, 0.32);
+}
+
+.task-modal-head,
+.task-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.task-modal-head h2 {
+  margin: 8px 0 0;
+  color: #0b3929;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.75rem;
+}
+
+.task-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.task-modal-grid label,
+.task-modal-section {
+  display: grid;
+  gap: 7px;
+}
+
+.task-modal-grid label span,
+.task-modal-section h3 {
+  color: #25362f;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.task-modal-grid input,
+.task-modal-grid textarea {
+  width: 100%;
+  border: 1px solid rgba(36, 50, 61, 0.14);
+  border-radius: 10px;
+  color: #14251f;
+  background: #ffffff;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.task-modal-grid textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.task-existing-field {
+  align-self: end;
+  margin: 0;
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: #33463d;
+  background: #f2efe6;
+  font-size: .86rem;
+  font-weight: 760;
+}
+
+.task-subtask-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  color: #26362f;
+  font-size: .9rem;
+  font-weight: 760;
+}
+
+.task-subtask-row input {
+  width: auto;
+}
+
+.task-upload-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 40px;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 0 14px;
+  color: #fff8e9;
+  background: #0b5d3b;
+  cursor: pointer;
+  font-size: .83rem;
+  font-weight: 900;
+}
+
+.task-upload-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.task-attachment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.task-attachment-list a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(36, 50, 61, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  color: #15372a;
+  background: #f8f5ee;
+  text-decoration: none;
+  font-weight: 850;
+}
+
+.task-attachment-list small,
+.task-draft-message {
+  color: #5d6c64;
+  font-size: .78rem;
+  font-weight: 760;
+}
+
 .checklist-complete-label {
   color: #0b5d3b;
   font-weight: 850;
@@ -3289,6 +3447,16 @@ textarea {
 
 .checklist-widget {
   padding: 18px;
+}
+
+.checklist-sort select {
+  appearance: none;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
 }
 
 .checklist-widget:first-child {

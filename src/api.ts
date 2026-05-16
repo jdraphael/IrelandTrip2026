@@ -1,4 +1,4 @@
-import type { BookingTask, BudgetItem, BudgetSummary, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, SourceSummary, TaskSummary, Trip } from './types';
+import type { BookingTask, BudgetItem, BudgetSummary, DayPlan, FamilyMember, ResearchAnswer, ResearchDraft, SourceLink, SourceSummary, TaskAttachment, TaskSummary, Trip } from './types';
 
 export interface BudgetResponse {
   items: BudgetItem[];
@@ -52,6 +52,8 @@ export const api = {
   saveBudget: (items: Partial<BudgetItem>[]) => request<BudgetResponse>('/api/budget', { method: 'PATCH', body: JSON.stringify(items) }),
   tasks: () => request<TasksResponse>('/api/tasks'),
   saveTasks: (items: Partial<BookingTask>[]) => request<TasksResponse>('/api/tasks', { method: 'PATCH', body: JSON.stringify(items) }),
+  createTaskItineraryDraft: (id: string, summary: string) => request<ResearchDraft>(`/api/tasks/${id}/itinerary-draft`, { method: 'POST', body: JSON.stringify({ summary }) }),
+  uploadTaskAttachment: (payload: { fileName: string; contentType: string; dataBase64: string; note?: string }) => request<TaskAttachment>('/api/uploads', { method: 'POST', body: JSON.stringify(payload) }),
   sources: () => request<SourcesResponse>('/api/sources'),
   checkSource: (url: string, title?: string) => request<SourceLink>('/api/sources/check', { method: 'POST', body: JSON.stringify({ url, title }) }),
   researchHistory: () => request<ResearchAnswer[]>('/api/research'),

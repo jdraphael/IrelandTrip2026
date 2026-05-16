@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import crypto from 'node:crypto';
+import { put } from '@vercel/blob';
 import { z } from 'zod';
 import { calculateBudgetSummary } from '../src/lib/budget.js';
 import { summarizeTasks } from '../src/lib/tasks.js';
@@ -23,6 +24,7 @@ const familyMemberSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(60),
   role: z.enum(['parent', 'child']),
+  age: z.number().int().min(0).max(120).optional(),
   avatarKey: z.string().optional(),
   taskColor: z.string().optional()
 });
@@ -30,6 +32,13 @@ const familyMembersSchema = z.array(familyMemberSchema).min(1).max(12);
 const researchSchema = z.object({ question: z.string().min(3), deep: z.boolean().optional(), context: z.string().max(4000).optional() });
 const sourceCheckSchema = z.object({ url: z.string().url(), title: z.string().optional() });
 const loginSchema = z.object({ passcode: z.string().min(1) });
+const uploadSchema = z.object({
+  fileName: z.string().min(1).max(160),
+  contentType: z.string().min(1).max(120),
+  dataBase64: z.string().min(1),
+  note: z.string().max(500).optional()
+});
+const taskDraftSchema = z.object({ summary: z.string().min(3).max(1200) });
 
 const sessionCookieName = 'ireland_trip_session';
 
@@ -69,7 +78,7 @@ export function createApp({
 }: CreateAppOptions) {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '12mb' }));
 
   const secureCookies = process.env.VERCEL_ENV === 'production';
   const validSessionToken = createSessionToken(sessionSecret);
@@ -188,6 +197,73 @@ export function createApp({
     const updates = Array.isArray(request.body) ? request.body : [request.body];
     const items = await db.saveTasks((await db.getTasks()).map((task) => ({ ...task, ...(updates.find((update) => update.id === task.id) || {}) })));
     response.json({ items, summary: summarizeTasks(items) });
+  }));
+
+  app.post('/api/uploads', asyncRoute(async (request, response) => {
+    const input = uploadSchema.parse(request.body);
+    const buffer = Buffer.from(input.dataBase64, 'base64');
+    if (buffer.length === 0) {
+      response.status(400).json({ error: 'Uploaded file was empty' });
+      return;
+    }
+    const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'document';
+    const blob = await put(`checklist-documents/${crypto.randomUUID()}-${safeName}`, buffer, {
+      access: 'public',
+      contentType: input.contentType
+    });
+    response.json({
+      id: crypto.randomUUID(),
+      name: input.fileName,
+      url: blob.url,
+      contentType: input.contentType,
+      size: buffer.length,
+      uploadedAt: new Date().toISOString(),
+      note: input.note
+    });
+  }));
+
+  app.post('/api/tasks/:id/itinerary-draft', asyncRoute(async (request, response) => {
+    const taskId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+    const input = taskDraftSchema.parse(request.body);
+    const task = (await db.getTasks()).find((item) => item.id === taskId);
+    if (!task) {
+      response.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    const itinerary = await db.getItinerary();
+    const targetDay = itinerary[0];
+    if (!targetDay) {
+      response.status(400).json({ error: 'No itinerary day is available for a draft' });
+      return;
+    }
+    const draft = {
+      id: `draft-${Date.now()}-${crypto.randomUUID()}`,
+      kind: 'itinerary' as const,
+      title: `Review itinerary notes for ${task.title}`,
+      summary: input.summary,
+      createdAt: new Date().toISOString(),
+      status: 'draft' as const,
+      payload: {
+        mode: 'patch' as const,
+        dayId: targetDay.id,
+        patch: {
+          notes: `${targetDay.notes}\n\nChecklist detail from "${task.title}": ${input.summary}`
+        }
+      },
+      sourceIds: [task.id]
+    };
+    const answer = {
+      id: `answer-${Date.now()}`,
+      question: `Create itinerary draft from checklist item: ${task.title}`,
+      answer: `Created a reviewable itinerary draft from checklist details for ${task.title}.`,
+      createdAt: draft.createdAt,
+      sources: [],
+      drafts: [draft],
+      warnings: []
+    };
+    await db.saveDrafts([draft, ...(await db.getDrafts())]);
+    await db.saveResearchAnswers([answer, ...(await db.getResearchAnswers())]);
+    response.json(draft);
   }));
 
   app.get('/api/sources', asyncRoute(async (_request, response) => {

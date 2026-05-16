@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { TasksResponse } from '../src/api';
@@ -9,6 +9,8 @@ const tripResponse = {
   title: 'Ireland Family Trip',
   month: 'June',
   year: 2027,
+  startDate: '2027-06-18',
+  endDate: '2027-06-30',
   travelers: 5,
   adults: 2,
   children: 3,
@@ -21,11 +23,11 @@ const tripResponse = {
 };
 
 const familyMembersResponse = [
-  { id: 'justin', name: 'Justin', role: 'parent' as const, avatarKey: 'dad', taskColor: '#0B5D3B' },
-  { id: 'krissy', name: 'Krissy', role: 'parent' as const, avatarKey: 'mom', taskColor: '#5F8B4C' },
-  { id: 'lyla', name: 'Lyla', role: 'child' as const, avatarKey: 'lyla', taskColor: '#D9B95B' },
-  { id: 'grace', name: 'Grace', role: 'child' as const, avatarKey: 'grace', taskColor: '#C86B25' },
-  { id: 'everly', name: 'Everly', role: 'child' as const, avatarKey: 'everly', taskColor: '#2F7D67' }
+  { id: 'justin', name: 'Justin', role: 'parent' as const, avatarKey: 'dad', taskColor: '#0B5D3B', age: 40 },
+  { id: 'krissy', name: 'Krissy', role: 'parent' as const, avatarKey: 'mom', taskColor: '#5F8B4C', age: 39 },
+  { id: 'lyla', name: 'Lyla', role: 'child' as const, avatarKey: 'lyla', taskColor: '#D9B95B', age: 11 },
+  { id: 'grace', name: 'Grace', role: 'child' as const, avatarKey: 'grace', taskColor: '#C86B25', age: 9 },
+  { id: 'everly', name: 'Everly', role: 'child' as const, avatarKey: 'everly', taskColor: '#2F7D67', age: 6 }
 ];
 
 describe('Ireland trip app', () => {
@@ -45,7 +47,27 @@ describe('Ireland trip app', () => {
         actionLabel: 'View Options',
         subtasksDone: 0,
         subtasksTotal: 2,
-        assignedTo: ['Justin', 'Krissy']
+        assignedTo: ['Justin', 'Krissy'],
+        decisionSummary: 'Target a one-stop route with all five seats together.',
+        detailedNotes: 'Avoid basic economy and confirm the seat map before payment.',
+        budgetEstimate: 6200,
+        planningFields: {
+          preferredAirlines: 'Delta or Aer Lingus',
+          seatingPriority: 'Five adjacent seats'
+        },
+        detailSubtasks: [
+          { id: 'route-compare', label: 'Compare one-stop routes from LEX', done: false },
+          { id: 'seat-map', label: 'Check seat map before payment', done: false }
+        ],
+        attachments: [{
+          id: 'fare-sheet',
+          name: 'fare-watch.pdf',
+          url: 'https://example.com/fare-watch.pdf',
+          contentType: 'application/pdf',
+          size: 48123,
+          uploadedAt: '2026-05-16T13:00:00.000Z',
+          note: 'Initial fare comparison'
+        }]
       },
       {
         id: 'task-passports',
@@ -120,7 +142,7 @@ describe('Ireland trip app', () => {
     await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
 
     expect(screen.getByRole('heading', { name: /Ireland Family Adventure/i })).toBeInTheDocument();
-    expect(screen.getByText(/392 days to go/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Jun 18-30, 2027/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/LEX/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Kilkenny/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Checklist/i })).toBeInTheDocument();
@@ -146,11 +168,14 @@ describe('Ireland trip app', () => {
     const justinInput = await screen.findByLabelText(/Traveler name for Justin/i);
     await userEvent.clear(justinInput);
     await userEvent.type(justinInput, 'Justin Raphael');
+    const justinAge = screen.getByLabelText(/Traveler age for Justin/i);
+    await userEvent.clear(justinAge);
+    await userEvent.type(justinAge, '41');
     await userEvent.click(screen.getByRole('button', { name: /Save travelers/i }));
 
     expect(fetchMock).toHaveBeenCalledWith('/api/family-members', expect.objectContaining({
       method: 'PATCH',
-      body: expect.stringContaining('Justin Raphael')
+      body: expect.stringContaining('"age":41')
     }));
   });
 
@@ -180,6 +205,69 @@ describe('Ireland trip app', () => {
       body: JSON.stringify([{ id: 'task-book-flights', status: 'done' }])
     }));
     expect(await screen.findAllByText(/Completed/i)).not.toHaveLength(0);
+  });
+
+  it('sorts checklist cards with the sort dropdown', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp({
+      items: [
+        { id: 'later-high', title: 'Later high priority task', status: 'open', dueDate: '2027-05-01', category: 'Flights', priority: 'high', displayCategory: 'Flights & Travel', subtasksDone: 0, subtasksTotal: 1 },
+        { id: 'earlier-medium', title: 'Earlier medium task', status: 'open', dueDate: '2026-08-01', category: 'Documents', priority: 'medium', displayCategory: 'Family Prep', subtasksDone: 0, subtasksTotal: 1 }
+      ],
+      summary: { total: 2, done: 0, open: 2, blocked: 0 }
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+
+    expect(screen.getAllByRole('heading', { level: 3 })[0]).toHaveTextContent('Later high priority task');
+    await userEvent.selectOptions(screen.getByLabelText(/Sort checklist/i), 'dueDate');
+    expect(screen.getAllByRole('heading', { level: 3 })[0]).toHaveTextContent('Earlier medium task');
+  });
+
+  it('opens a rich checklist detail modal from a task action button', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp());
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /View Options/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /Book flights and seats together/i });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/Target a one-stop route/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Delta or Aer Lingus/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: /fare-watch.pdf/i })).toHaveAttribute('href', 'https://example.com/fare-watch.pdf');
+  });
+
+  it('saves checklist detail modal edits through the task API', async () => {
+    const fetchMock = stubChecklistApp();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /View Options/i }));
+    const summary = await screen.findByLabelText(/Decision summary/i);
+    await userEvent.clear(summary);
+    await userEvent.type(summary, 'Book Delta if five adjacent seats are available.');
+    await userEvent.click(screen.getByRole('button', { name: /Save details/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/tasks', expect.objectContaining({
+      method: 'PATCH',
+      body: expect.stringContaining('Book Delta if five adjacent seats are available')
+    }));
+  });
+
+  it('labels route progress bubbles as pending before travel starts', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp());
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
+
+    expect(await screen.findByLabelText(/Lexington departure pending/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Lexington departure completed/i)).not.toBeInTheDocument();
   });
 
   it('renders legacy checklist tasks with derived visual metadata', async () => {
@@ -226,7 +314,7 @@ describe('Ireland trip app', () => {
     expect(screen.getByRole('heading', { name: /Source Status/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ask the Agent/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open Checklist/i })).toBeInTheDocument();
-    expect(screen.getByText('June 2027')).toBeInTheDocument();
+    expect(screen.getByText('Jun 18-30, 2027')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Research Agent/i })).toBeInTheDocument();
     expect(await screen.findByText('1 USD = 0.85 EUR')).toBeInTheDocument();

@@ -61,7 +61,7 @@ const itinerary: DayPlan[] = [
     id: 'day-1',
     day: 1,
     title: 'Travel day to Dublin',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 18, 2027',
     base: 'In flight',
     route: 'LEX -> connecting airport -> DUB',
     driveTime: 'No Ireland driving',
@@ -73,7 +73,7 @@ const itinerary: DayPlan[] = [
     id: 'day-2',
     day: 2,
     title: 'Arrive and settle into Dublin',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 19, 2027',
     base: 'Dublin',
     lodging: { name: 'Staycity Aparthotels Dublin Castle', type: 'aparthotel', nightlyEstimate: 275, sourceIds: ['src-staycity'], notes: 'Kitchenette and apartment setup for five.' },
     stops: [
@@ -87,7 +87,7 @@ const itinerary: DayPlan[] = [
     id: 'day-3',
     day: 3,
     title: 'Dublin Zoo and Phoenix Park',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 20, 2027',
     base: 'Dublin',
     driveTime: 'Taxi/transit day',
     lodging: { name: 'Staycity Aparthotels Dublin Castle', type: 'aparthotel', nightlyEstimate: 275, sourceIds: ['src-staycity'] },
@@ -102,7 +102,7 @@ const itinerary: DayPlan[] = [
     id: 'day-4',
     day: 4,
     title: 'Book of Kells and Dublin shopping',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 21, 2027',
     base: 'Dublin',
     lodging: { name: 'Staycity Aparthotels Dublin Castle', type: 'aparthotel', nightlyEstimate: 275, sourceIds: ['src-staycity'] },
     stops: [
@@ -116,7 +116,7 @@ const itinerary: DayPlan[] = [
     id: 'day-5',
     day: 5,
     title: 'Drive to Kilkenny',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 22, 2027',
     base: 'Kilkenny',
     route: 'Dublin -> Kildare -> Kilkenny',
     driveTime: '1.5 hours direct',
@@ -133,7 +133,7 @@ const itinerary: DayPlan[] = [
     id: 'day-6',
     day: 6,
     title: 'Kilkenny to Cork with cave stop',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 23, 2027',
     base: 'Cork',
     route: 'Kilkenny -> Mitchelstown -> Cork',
     driveTime: '2 hours direct, 4-5 hours with stops',
@@ -149,34 +149,24 @@ const itinerary: DayPlan[] = [
   {
     id: 'day-7',
     day: 7,
-    title: 'Blarney Castle and Gardens',
-    dateLabel: 'Mid-June 2027',
+    title: 'Blarney Castle, Fota, or Kinsale',
+    dateLabel: 'June 24, 2027',
     base: 'Cork',
     driveTime: 'Local drives under 30 minutes',
     lodging: { name: 'Farmhouse or family Airbnb outside Cork', type: 'airbnb', nightlyEstimate: 225 },
-    stops: [stop('blarney-castle', 'Blarney Castle and Gardens', 51.9291, -8.5709, 'activity', ['src-blarney'])],
-    notes: 'Book online to reduce summer queue stress.',
+    stops: [
+      stop('blarney-castle', 'Blarney Castle and Gardens', 51.9291, -8.5709, 'activity', ['src-blarney']),
+      stop('fota', 'Fota Wildlife Park', 51.891, -8.3059, 'activity', ['src-fota'], 'High-priority animal stop.'),
+      stop('kinsale', 'Kinsale', 51.7059, -8.5222, 'drive-stop')
+    ],
+    notes: 'Use Blarney as the anchor; choose Fota or Kinsale based on weather and energy.',
     paymentTags: ruralPaymentTags()
   },
   {
     id: 'day-8',
     day: 8,
-    title: 'Fota Wildlife Park or Kinsale',
-    dateLabel: 'Mid-June 2027',
-    base: 'Cork',
-    lodging: { name: 'Farmhouse or family Airbnb outside Cork', type: 'airbnb', nightlyEstimate: 225 },
-    stops: [
-      stop('fota', 'Fota Wildlife Park', 51.891, -8.3059, 'activity', ['src-fota'], 'High-priority animal stop.'),
-      stop('kinsale', 'Kinsale', 51.7059, -8.5222, 'drive-stop')
-    ],
-    notes: 'Choose Fota as the anchor; Kinsale is the optional color-and-coast add-on.',
-    paymentTags: ruralPaymentTags()
-  },
-  {
-    id: 'day-9',
-    day: 9,
     title: 'Drive to Dingle',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 25, 2027',
     base: 'Dingle',
     route: 'Cork -> Kerry -> Dingle',
     driveTime: '3 hours direct, 5-6 hours with stops',
@@ -190,10 +180,10 @@ const itinerary: DayPlan[] = [
     paymentTags: dinglePaymentTags()
   },
   {
-    id: 'day-10',
-    day: 10,
+    id: 'day-9',
+    day: 9,
     title: 'Dingle Sheepdogs and Slea Head',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 26, 2027',
     base: 'Dingle',
     lodging: { name: 'Farm stay or cottage near Dingle', type: 'farm-stay', nightlyEstimate: 225 },
     stops: [
@@ -204,25 +194,10 @@ const itinerary: DayPlan[] = [
     paymentTags: dinglePaymentTags()
   },
   {
-    id: 'day-11',
-    day: 11,
-    title: 'Killarney option day',
-    dateLabel: 'Mid-June 2027',
-    base: 'Dingle',
-    driveTime: 'Local scenic day',
-    lodging: { name: 'Farm stay or cottage near Dingle', type: 'farm-stay', nightlyEstimate: 225 },
-    stops: [
-      stop('killarney-national-park', 'Killarney National Park', 52.0167, -9.506, 'viewpoint'),
-      stop('gap-dunloe', 'Gap of Dunloe', 52.0236, -9.6338, 'activity')
-    ],
-    notes: 'Use as a flexible day depending on weather and energy.',
-    paymentTags: dinglePaymentTags()
-  },
-  {
-    id: 'day-12',
-    day: 12,
+    id: 'day-10',
+    day: 10,
     title: 'Dingle to Galway via Bunratty',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 27, 2027',
     base: 'Galway',
     route: 'Dingle -> Bunratty -> Galway',
     driveTime: '4.5 hours direct, 6-7 hours with stops',
@@ -236,52 +211,42 @@ const itinerary: DayPlan[] = [
     paymentTags: dinglePaymentTags()
   },
   {
-    id: 'day-13',
-    day: 13,
-    title: 'Cliffs of Moher day trip',
-    dateLabel: 'Mid-June 2027',
-    base: 'Galway',
-    lodging: { name: 'The Connacht Hotel', type: 'hotel', nightlyEstimate: 250, sourceIds: ['src-connacht'] },
-    stops: [stop('cliffs-moher', 'Cliffs of Moher', 52.9715, -9.4309, 'viewpoint', ['src-cliffs'])],
-    notes: 'Check weather before committing this day; visibility matters.',
-    paymentTags: ruralPaymentTags()
-  },
-  {
-    id: 'day-14',
-    day: 14,
-    title: 'Connemara and Galway',
-    dateLabel: 'Mid-June 2027',
-    base: 'Galway',
-    lodging: { name: 'The Connacht Hotel', type: 'hotel', nightlyEstimate: 250, sourceIds: ['src-connacht'] },
-    stops: [
-      stop('connemara', 'Connemara National Park', 53.548, -9.9486, 'viewpoint'),
-      stop('salthill', 'Salthill Promenade', 53.2592, -9.0741, 'activity')
-    ],
-    notes: 'Flexible outdoor day with Galway food and markets as the fallback.',
-    paymentTags: ruralPaymentTags()
-  },
-  {
-    id: 'day-15',
-    day: 15,
-    title: 'Return to Dublin Airport',
-    dateLabel: 'Mid-June 2027',
-    base: 'Dublin Airport',
-    route: 'Galway -> Clonmacnoise -> Dublin Airport',
+    id: 'day-11',
+    day: 11,
+    title: 'Galway to Dublin with Clonmacnoise',
+    dateLabel: 'June 28, 2027',
+    base: 'Dublin',
+    route: 'Galway -> Clonmacnoise -> Dublin',
     driveTime: '2.5 hours direct, 4 hours with stop',
     distanceMiles: 130,
-    lodging: { name: 'Clayton Hotel Dublin Airport', type: 'airport-hotel', nightlyEstimate: 230, sourceIds: ['src-clayton'] },
+    lodging: { name: 'Dublin family hotel or aparthotel', type: 'aparthotel', nightlyEstimate: 275, sourceIds: ['src-staycity'] },
     stops: [
       stop('clonmacnoise', 'Clonmacnoise Monastic Site', 53.3276, -7.9846, 'drive-stop'),
-      stop('clayton-airport', 'Clayton Hotel Dublin Airport', 53.4129, -6.2179, 'lodging', ['src-clayton'])
+      stop('dublin-return-base', 'Dublin return base', 53.3498, -6.2603, 'lodging', ['src-staycity'])
     ],
-    notes: 'Return rental car and make the final morning easy.',
+    notes: 'Return toward Dublin with one meaningful stop, then settle in for two final nights.',
     paymentTags: ruralPaymentTags()
   },
   {
-    id: 'day-16',
-    day: 16,
+    id: 'day-12',
+    day: 12,
+    title: 'Final Dublin day',
+    dateLabel: 'June 29, 2027',
+    base: 'Dublin',
+    driveTime: 'Taxi/transit day',
+    lodging: { name: 'Dublin family hotel or aparthotel', type: 'aparthotel', nightlyEstimate: 275, sourceIds: ['src-staycity'] },
+    stops: [
+      stop('final-dublin-shopping', 'Dublin shopping and flexible sightseeing', 53.342, -6.2591, 'activity'),
+      stop('pack-for-home', 'Pack documents and confirmations', 53.3498, -6.2603, 'lodging')
+    ],
+    notes: 'Keep this flexible for shopping, missed Dublin stops, and packing before the flight home.',
+    paymentTags: cityPaymentTags()
+  },
+  {
+    id: 'day-13',
+    day: 13,
     title: 'Fly home',
-    dateLabel: 'Mid-June 2027',
+    dateLabel: 'June 30, 2027',
     base: 'Travel home',
     route: 'DUB -> connecting airport -> LEX',
     driveTime: 'Airport shuttle only',
@@ -317,7 +282,23 @@ const tasks: BookingTask[] = [
     subtasksDone: 0,
     subtasksTotal: 2,
     assignedTo: ['Justin', 'Krissy'],
-    familyImpact: 'Affects all travelers'
+    familyImpact: 'Affects all travelers',
+    decisionSummary: 'Book main cabin or equivalent with all five seats assigned together.',
+    detailedNotes: 'Compare LEX to DUB one-stop routes, avoid basic economy, and verify the seat map before payment.',
+    budgetEstimate: 6200,
+    planningFields: {
+      preferredAirlines: 'Delta or Aer Lingus',
+      seatingPriority: 'Five seats together',
+      timingWindow: 'Outbound June 18, return June 30'
+    },
+    detailSubtasks: [
+      { id: 'compare-routes', label: 'Compare one-stop LEX to DUB routes', done: false },
+      { id: 'verify-seat-map', label: 'Verify seats together before checkout', done: false }
+    ],
+    detailLinks: [
+      { id: 'delta', label: 'Delta flight search', url: 'https://www.delta.com/' },
+      { id: 'aer-lingus', label: 'Aer Lingus flight search', url: 'https://www.aerlingus.com/' }
+    ]
   },
   {
     id: 'task-passports',
@@ -684,13 +665,15 @@ export function buildSeedData(transcriptPath = path.resolve(process.cwd(), 'Chat
     title: 'Ireland Family Trip',
     month: 'June',
     year: latestTripMovedTo2027 ? 2027 : 2027,
+    startDate: '2027-06-18',
+    endDate: '2027-06-30',
     travelers: 5,
     adults: 2,
     children: 3,
     origin: 'LEX',
     destination: 'DUB',
     budgetTarget: 15000,
-    routeSummary: 'Dublin -> Kilkenny -> Cork -> Dingle/Killarney -> Galway -> Dublin Airport',
+    routeSummary: 'LEX departure -> Dublin -> Kilkenny -> Cork -> Dingle -> Galway -> Dublin -> LEX return',
     priorities: ['Animals and lamb experiences', 'Castles', 'Cliffs of Moher', 'Shopping', 'Family-friendly lodging', 'Manageable drive days'],
     updatedAt: new Date().toISOString()
   };

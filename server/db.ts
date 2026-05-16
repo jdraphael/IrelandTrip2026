@@ -6,14 +6,32 @@ import type { BookingTask, BudgetItem, DayPlan, FamilyMember, ResearchAnswer, Re
 import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
-const seedVersion = '5';
+const seedVersion = '7';
+
+const preservedTaskFields: Array<keyof BookingTask> = [
+  'status',
+  'subtasksDone',
+  'decisionSummary',
+  'detailedNotes',
+  'budgetEstimate',
+  'planningFields',
+  'detailSubtasks',
+  'detailLinks',
+  'attachments'
+];
 
 function mergeSeedTasks(seedTasks: BookingTask[], currentTasks: BookingTask[] = [], preserveStatus = true) {
   const currentById = new Map(currentTasks.map((task) => [task.id, task]));
   const seedIds = new Set(seedTasks.map((task) => task.id));
   const upgraded = seedTasks.map((task) => {
     const current = currentById.get(task.id);
-    return current && preserveStatus ? { ...task, status: current.status, subtasksDone: current.subtasksDone ?? task.subtasksDone } : task;
+    if (!current || !preserveStatus) return task;
+    const preserved = Object.fromEntries(
+      preservedTaskFields
+        .filter((field) => current[field] !== undefined)
+        .map((field) => [field, current[field]])
+    );
+    return { ...task, ...preserved };
   });
   const custom = currentTasks.filter((task) => !seedIds.has(task.id));
   return [...upgraded, ...custom];
@@ -38,7 +56,11 @@ class SqliteTripDatabase implements TripDatabase {
       const currentTasks = this.db.prepare('SELECT value FROM kv WHERE key = ?').get('tasks') as { value: string } | undefined;
       this.set('tasks', mergeSeedTasks(seed.tasks, currentTasks ? JSON.parse(currentTasks.value) as BookingTask[] : [], Boolean(currentVersion)));
       const currentFamilyMembers = this.db.prepare('SELECT value FROM kv WHERE key = ?').get('familyMembers') as { value: string } | undefined;
-      this.set('familyMembers', currentFamilyMembers ? JSON.parse(currentFamilyMembers.value) as FamilyMember[] : seed.familyMembers);
+      const existing = currentFamilyMembers ? JSON.parse(currentFamilyMembers.value) as FamilyMember[] : [];
+      const byId = new Map(existing.map((member) => [member.id, member]));
+      this.set('trip', seed.trip);
+      this.set('itinerary', seed.itinerary);
+      this.set('familyMembers', seed.familyMembers.map((member) => ({ ...member, ...(byId.get(member.id) || {}) })));
       this.set('seedVersion', seedVersion);
       return;
     }

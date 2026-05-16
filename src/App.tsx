@@ -34,6 +34,20 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof CalendarDays }> = [
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+function parseTripDate(value?: string) {
+  if (!value) return undefined;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function formatTripDateRange(trip?: Trip) {
+  const start = parseTripDate(trip?.startDate);
+  const end = parseTripDate(trip?.endDate);
+  if (!start || !end) return `${trip?.month || 'June'} ${trip?.year || 2027}`;
+  const month = start.toLocaleString('en-US', { month: 'short' });
+  return `${month} ${start.getDate()}-${end.getDate()}, ${end.getFullYear()}`;
+}
+
 const dashboardAssetStyle = {
   '--asset-sidebar': `url(${dashboardAssets.sidebarBackground})`,
   '--asset-hero': `url(${dashboardAssets.heroBanner})`,
@@ -332,12 +346,13 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
   const remainingPlanned = state.budget?.summary.remainingPlanned || 0;
   const budgetTarget = state.trip?.budgetTarget || 15000;
   const routeDays = state.itinerary.filter((day) => day.base !== 'In flight' && day.base !== 'Travel home').slice(0, 8);
+  const tripDateRange = formatTripDateRange(state.trip);
   return (
     <div className="dashboard-grid">
       <section className="hero-panel dashboard-hero">
         <div className="hero-copy">
           <h1>Your Ireland adventure is waiting</h1>
-          <p>{state.trip?.month} {state.trip?.year} · {state.trip?.travelers} travelers · {state.trip?.origin} to {state.trip?.destination}</p>
+          <p>{tripDateRange} · {state.trip?.travelers} travelers · {state.trip?.origin} to {state.trip?.destination}</p>
           <button className="button primary agent-button" onClick={() => setTab('research')}><Bot size={17} /> Ask the Agent</button>
         </div>
         <section className="panel planning-card hero-planning-card" aria-label="Planning Health">
@@ -1082,7 +1097,7 @@ export default function App() {
               {browserCollapsed ? <Eye size={15} /> : <EyeOff size={15} />}
               {browserCollapsed ? 'Expand View' : 'Collapse View'}
             </button>
-            <StatusPill tone="good">June 2027</StatusPill>
+            <StatusPill tone="good">{formatTripDateRange(state.trip)}</StatusPill>
             <TravelerMenu members={state.familyMembers} onSave={saveFamilyMembers} compact />
             {authRequired && <button className="button ghost compact" onClick={logout}>Log out</button>}
           </div>

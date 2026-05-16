@@ -4,14 +4,32 @@ import type { BookingTask, BudgetItem, DayPlan, FamilyMember, ResearchAnswer, Re
 import type { TripDatabase } from './tripDatabase.js';
 
 type StoreKey = keyof SeedData | 'drafts' | 'researchAnswers' | 'seedVersion';
-const seedVersion = '5';
+const seedVersion = '7';
+
+const preservedTaskFields: Array<keyof BookingTask> = [
+  'status',
+  'subtasksDone',
+  'decisionSummary',
+  'detailedNotes',
+  'budgetEstimate',
+  'planningFields',
+  'detailSubtasks',
+  'detailLinks',
+  'attachments'
+];
 
 function mergeSeedTasks(seedTasks: BookingTask[], currentTasks: BookingTask[] = [], preserveStatus = true) {
   const currentById = new Map(currentTasks.map((task) => [task.id, task]));
   const seedIds = new Set(seedTasks.map((task) => task.id));
   const upgraded = seedTasks.map((task) => {
     const current = currentById.get(task.id);
-    return current && preserveStatus ? { ...task, status: current.status, subtasksDone: current.subtasksDone ?? task.subtasksDone } : task;
+    if (!current || !preserveStatus) return task;
+    const preserved = Object.fromEntries(
+      preservedTaskFields
+        .filter((field) => current[field] !== undefined)
+        .map((field) => [field, current[field]])
+    );
+    return { ...task, ...preserved };
   });
   const custom = currentTasks.filter((task) => !seedIds.has(task.id));
   return [...upgraded, ...custom];
@@ -40,7 +58,10 @@ export class PostgresTripDatabase implements TripDatabase {
       const currentTasks = (await this.sql`SELECT value FROM trip_agent_kv WHERE key = 'tasks'`) as Array<{ value: BookingTask[] }>;
       await this.setWithoutInit('tasks', mergeSeedTasks(this.seed.tasks, currentTasks[0]?.value || [], Boolean(rows[0].value)));
       const currentFamilyMembers = (await this.sql`SELECT value FROM trip_agent_kv WHERE key = 'familyMembers'`) as Array<{ value: FamilyMember[] }>;
-      await this.setWithoutInit('familyMembers', currentFamilyMembers[0]?.value || this.seed.familyMembers);
+      const byId = new Map((currentFamilyMembers[0]?.value || []).map((member) => [member.id, member]));
+      await this.setWithoutInit('trip', this.seed.trip);
+      await this.setWithoutInit('itinerary', this.seed.itinerary);
+      await this.setWithoutInit('familyMembers', this.seed.familyMembers.map((member) => ({ ...member, ...(byId.get(member.id) || {}) })));
       await this.setWithoutInit('seedVersion', seedVersion);
       return;
     }

@@ -54,7 +54,8 @@ export function TravelerMenu({ members, onSave, className = '', compact = false 
       .map((member) => ({
         ...member,
         id: toSlug(member.id || member.name) || `traveler-${Date.now()}`,
-        name: member.name.trim()
+        name: member.name.trim(),
+        age: member.age === undefined || Number.isNaN(member.age) ? undefined : member.age
       }))
       .filter((member) => member.name.length > 0);
     if (cleaned.length === 0) return;
@@ -91,6 +92,16 @@ export function TravelerMenu({ members, onSave, className = '', compact = false 
                 onChange={(event) => updateMember(member.id, { name: event.target.value })}
                 aria-label={`Traveler name for ${member.name}`}
               />
+              <input
+                className="traveler-age-input"
+                type="number"
+                min={0}
+                max={120}
+                value={member.age ?? ''}
+                onChange={(event) => updateMember(member.id, { age: event.target.value === '' ? undefined : Number(event.target.value) })}
+                aria-label={`Traveler age for ${member.name}`}
+                placeholder="Age"
+              />
               <select
                 value={member.role}
                 onChange={(event) => updateMember(member.id, { role: event.target.value as FamilyMember['role'] })}
@@ -106,7 +117,7 @@ export function TravelerMenu({ members, onSave, className = '', compact = false 
           <input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Add traveler" aria-label="Add traveler name" />
           <button type="button" onClick={addMember} disabled={!newName.trim()} aria-label="Add traveler"><Plus size={15} /></button>
         </div>
-        <button className="traveler-save-button" type="button" onClick={save} disabled={saving || draft.every((member, index) => member.name === sourceMembers[index]?.name && member.role === sourceMembers[index]?.role)}>
+        <button className="traveler-save-button" type="button" onClick={save} disabled={saving || draft.every((member, index) => member.name === sourceMembers[index]?.name && member.role === sourceMembers[index]?.role && member.age === sourceMembers[index]?.age)}>
           <Check size={15} /> {saving ? 'Saving...' : 'Save travelers'}
         </button>
       </div>

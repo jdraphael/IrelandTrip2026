@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.3.3",
     "@vitejs/plugin-react": "^6.0.1",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",
