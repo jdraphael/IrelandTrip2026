@@ -31,4 +31,23 @@ export const itineraryThumbnailAssets = [
   '/dashboard-assets/generated/thumb-killarney.webp'
 ] as const;
 
+export const itineraryAssets = {
+  hero: '/dashboard-assets/itinerary/journey-hero.png',
+  mobileHero: '/dashboard-assets/checklist/mobile-hero-ireland.webp',
+  map: '/dashboard-assets/generated/ireland-map.webp',
+  banners: {
+    flight: '/dashboard-assets/checklist/checklist-flight-booking.webp',
+    dublin: '/dashboard-assets/generated/thumb-dublin.webp',
+    kilkenny: '/dashboard-assets/generated/thumb-kilkenny.webp',
+    cork: '/dashboard-assets/generated/thumb-cork.webp',
+    dingle: '/dashboard-assets/generated/thumb-dingle.webp',
+    galway: '/dashboard-assets/generated/thumb-galway.webp',
+    cliffs: '/dashboard-assets/generated/thumb-cliffs.webp',
+    sheepdog: '/dashboard-assets/generated/thumb-sheepdog.webp',
+    killarney: '/dashboard-assets/generated/thumb-killarney.webp',
+    castle: '/dashboard-assets/checklist/checklist-experiences.webp',
+    home: '/dashboard-assets/generated/route-snapshot.webp'
+  }
+} as const;
+
 export type DashboardAssetKey = keyof typeof dashboardAssets;
