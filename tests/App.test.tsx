@@ -480,9 +480,116 @@ describe('Ireland trip app', () => {
     await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
 
     const paymentGroup = await screen.findByLabelText(/Recommended payment methods for day 5/i);
-    expect(paymentGroup).toHaveTextContent('Visa');
-    expect(paymentGroup).toHaveTextContent('Mastercard');
+    expect(paymentGroup).toHaveTextContent('VISA');
+    expect(screen.getByLabelText(/Mastercard: Backup card/i)).toBeInTheDocument();
     expect(paymentGroup).toHaveTextContent('EUR 60-120');
+  });
+
+  it('renders the cinematic itinerary hero, journey cards, route widgets, and derived drive insight', async () => {
+    const itinerary = Array.from({ length: 13 }, (_value, index) => {
+      const day = index + 1;
+      const bases = ['In flight', 'Dublin', 'Dublin', 'Dublin', 'Kilkenny', 'Cork', 'Cork', 'Dingle', 'Dingle', 'Galway', 'Dublin', 'Dublin', 'Travel home'];
+      const titles = ['Travel day to Dublin', 'Arrive Dublin', 'Dublin Zoo', 'Book of Kells', 'Drive to Kilkenny', 'Kilkenny to Cork', 'Blarney Castle', 'Drive to Dingle', 'Dingle Sheepdogs', 'Dingle to Galway', 'Galway to Dublin', 'Final Dublin day', 'Fly home'];
+      return {
+        id: `day-${day}`,
+        day,
+        title: titles[index],
+        dateLabel: `June ${17 + day}, 2027`,
+        base: bases[index],
+        route: day === 10 ? 'Dingle -> Bunratty -> Galway' : undefined,
+        driveTime: day === 10 ? '4.5 hours direct, 6-7 hours with stops' : day > 4 && day < 12 ? '2 hours direct' : undefined,
+        distanceMiles: day === 10 ? 150 : day > 4 && day < 12 ? 90 : undefined,
+        stops: [{ id: `stop-${day}`, name: `${bases[index]} stop`, kind: day === 1 || day === 13 ? 'airport' : 'activity', latitude: 53, longitude: -6 }],
+        notes: `Notes for day ${day}.`
+      };
+    });
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json(itinerary));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({
+        items: [{ id: 'lodging', category: 'Lodging', label: 'Family stays', planned: 2450, actual: 0, status: 'watching' }],
+        summary: { target: 7500, planned: 5510, actual: 0, remainingPlanned: 1990, remainingActual: 7500, plannedPercent: 73, actualPercent: 0 }
+      }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: richTasksResponse.items, summary: { total: 12, done: 8, open: 4, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
+
+    expect(await screen.findByRole('heading', { name: /Your Ireland Adventure/i })).toBeInTheDocument();
+    expect(screen.getByText(/13 unforgettable days across Ireland/i)).toBeInTheDocument();
+    expect(screen.getByText(/1,200\+ km/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Weather Along Route/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Drive Intelligence/i })).toBeInTheDocument();
+    expect(screen.getByText(/Day 10 is your longest driving day/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /AI Travel Assistant/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Budget Tracker/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Journey Progress/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Route Map/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Travel notes for day 1/i)).not.toBeInTheDocument();
+  });
+
+  it('expands itinerary travel notes and saves note changes through the itinerary API', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary') && init?.method === 'PATCH') {
+        return Promise.resolve(Response.json([{ id: 'day-1', day: 1, title: 'Travel to Dublin', dateLabel: 'June 18, 2027', base: 'In flight', stops: [], notes: 'Updated family pacing note.' }]));
+      }
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-1', day: 1, title: 'Travel to Dublin', dateLabel: 'June 18, 2027', base: 'In flight', stops: [], notes: 'Original travel note.' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
+    await userEvent.click(await screen.findByRole('button', { name: /Travel Notes/i }));
+    const notes = await screen.findByLabelText(/Travel notes for day 1/i);
+    await userEvent.clear(notes);
+    await userEvent.type(notes, 'Updated family pacing note.');
+    await userEvent.click(screen.getByRole('button', { name: /Save Notes/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/itinerary', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify([{ id: 'day-1', notes: 'Updated family pacing note.' }])
+    }));
+  });
+
+  it('opens the itinerary agent with the right-rail AI suggestion prefilled', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
+        { id: 'day-8', day: 8, title: 'Drive to Dingle', dateLabel: 'June 25, 2027', base: 'Dingle', route: 'Cork -> Kerry -> Dingle', driveTime: '3 hours direct', distanceMiles: 100, stops: [], notes: 'Scenic drive.' }
+      ]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    }));
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]);
+    await userEvent.click(await screen.findByRole('button', { name: /Get Suggestions/i }));
+
+    expect(await screen.findByLabelText(/Itinerary agent prompt/i)).toHaveValue('Suggest kid-friendly lunch stops between Cork and Dingle.');
   });
 
   it('uses the provided icon asset for the app brand instead of the IE text mark', async () => {

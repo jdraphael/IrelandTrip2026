@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Banknote, Bell, Bot, CalendarDays, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, CreditCard, ExternalLink, Eye, EyeOff, FileCheck2, Home, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Banknote, Bell, Bot, CalendarDays, Car, Castle, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, Cloud, CloudRain, CreditCard, ExternalLink, Eye, EyeOff, FileCheck2, Home, Hotel, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, Plane, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Smile, Sparkles, StickyNote, Sun, Users, X } from 'lucide-react';
 import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import { ChecklistDashboard } from './components/ChecklistDashboard';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
 import { TravelerMenu } from './components/TravelerMenu';
-import { dashboardAssets, itineraryThumbnailAssets } from './dashboardAssets';
+import { dashboardAssets, itineraryAssets, itineraryThumbnailAssets } from './dashboardAssets';
 import { getTimeOfDayGreeting } from './lib/greeting';
 import type { BookingTask, BudgetItem, DayPlan, FamilyMember, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
@@ -221,7 +221,13 @@ function PaymentTags({ day }: { day: DayPlan }) {
       {tags.map((tag) => (
         <span className={`payment-chip payment-chip-${tag.kind}`} title={tag.note} aria-label={tag.note ? `${paymentTagLabel(tag)}: ${tag.note}` : paymentTagLabel(tag)} key={tag.id}>
           {tag.kind === 'cash' ? <Banknote size={15} /> : <CreditCard size={15} />}
-          {paymentTagLabel(tag)}
+          {tag.network === 'Visa' || tag.label.toLowerCase() === 'visa' ? (
+            <span className="visa-wordmark" aria-hidden="true">VISA</span>
+          ) : tag.network === 'Mastercard' || tag.label.toLowerCase() === 'mastercard' ? (
+            <span className="mastercard-mark" aria-hidden="true"><span /><span /></span>
+          ) : (
+            paymentTagLabel(tag)
+          )}
         </span>
       ))}
     </div>
@@ -474,7 +480,7 @@ function Dashboard({ state, setTab }: { state: AppState; setTab: (tab: Tab) => v
   );
 }
 
-function ItineraryView({
+function LegacyItineraryView({
   days,
   sources,
   currentDayCount,
@@ -532,6 +538,436 @@ function ItineraryView({
         days={days}
         sources={sources}
         currentDayCount={currentDayCount}
+        onAsk={onAsk}
+        onApplyDraft={onApplyDraft}
+        onDismissDraft={onDismissDraft}
+      />
+    </section>
+  );
+}
+
+type AgentCommand = { prompt: string; focusDayId?: string; nonce: number };
+
+const routeChapters = [
+  { key: 'lex', title: 'LEX', label: 'Departure', image: itineraryAssets.banners.flight },
+  { key: 'dublin', title: 'Dublin', label: 'First stay', image: itineraryAssets.banners.dublin },
+  { key: 'kilkenny', title: 'Kilkenny', label: 'Castle day', image: itineraryAssets.banners.kilkenny },
+  { key: 'cork', title: 'Cork', label: 'Countryside', image: itineraryAssets.banners.cork },
+  { key: 'dingle', title: 'Dingle', label: 'Coast', image: itineraryAssets.banners.dingle },
+  { key: 'galway', title: 'Galway', label: 'West coast', image: itineraryAssets.banners.galway },
+  { key: 'dublin-return', title: 'Dublin', label: 'Return', image: itineraryAssets.banners.castle },
+  { key: 'home', title: 'LEX', label: 'Home', image: itineraryAssets.banners.flight }
+] as const;
+
+const weatherOutlook = [
+  { city: 'Dublin', temp: '62F', note: 'Clouds', Icon: Cloud },
+  { city: 'Kilkenny', temp: '64F', note: 'Bright', Icon: Sun },
+  { city: 'Cork', temp: '58F', note: 'Clouds', Icon: Cloud },
+  { city: 'Dingle', temp: '57F', note: 'Rain likely', Icon: CloudRain },
+  { city: 'Galway', temp: '55F', note: 'Showers', Icon: CloudRain }
+];
+
+function daysUntilTrip(startDate?: string) {
+  const start = parseTripDate(startDate);
+  if (!start) return undefined;
+  const today = new Date();
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.max(0, Math.ceil((start.getTime() - todayLocal.getTime()) / 86_400_000));
+}
+
+function itineraryBanner(day: DayPlan) {
+  const key = `${day.title} ${day.base} ${day.route || ''} ${day.notes}`.toLowerCase();
+  if (key.includes('fly home') || key.includes('travel home')) return itineraryAssets.banners.home;
+  if (key.includes('flight') || key.includes('in flight') || key.includes('airport')) return itineraryAssets.banners.flight;
+  if (key.includes('sheepdog') || key.includes('slea')) return itineraryAssets.banners.sheepdog;
+  if (key.includes('cliff')) return itineraryAssets.banners.cliffs;
+  if (key.includes('killarney') || key.includes('kerry')) return itineraryAssets.banners.killarney;
+  if (key.includes('dingle')) return itineraryAssets.banners.dingle;
+  if (key.includes('galway') || key.includes('bunratty')) return itineraryAssets.banners.galway;
+  if (key.includes('cork') || key.includes('blarney') || key.includes('fota') || key.includes('kinsale')) return itineraryAssets.banners.cork;
+  if (key.includes('kilkenny')) return itineraryAssets.banners.kilkenny;
+  if (key.includes('castle') || key.includes('kells')) return itineraryAssets.banners.castle;
+  return itineraryAssets.banners.dublin;
+}
+
+function activeRouteKey(day?: DayPlan) {
+  if (!day) return 'lex';
+  const key = `${day.title} ${day.base} ${day.route || ''}`.toLowerCase();
+  if (key.includes('travel home') || key.includes('fly home')) return 'home';
+  if (key.includes('in flight') || key.includes('lex')) return 'lex';
+  if (key.includes('galway')) return 'galway';
+  if (key.includes('dingle')) return 'dingle';
+  if (key.includes('cork')) return 'cork';
+  if (key.includes('kilkenny')) return 'kilkenny';
+  if (key.includes('dublin')) return day.day > 10 ? 'dublin-return' : 'dublin';
+  return 'dublin';
+}
+
+function dayChips(day: DayPlan) {
+  const text = `${day.title} ${day.base} ${day.route || ''} ${day.notes}`.toLowerCase();
+  const chips = new Set<string>();
+  if (day.base === 'In flight' || day.base === 'Travel home' || text.includes('airport')) chips.add('Travel Day');
+  if (day.distanceMiles && day.distanceMiles >= 120) chips.add('Long Drive');
+  if (day.distanceMiles && day.distanceMiles > 0 && day.distanceMiles < 120) chips.add('Road Trip');
+  if (/dingle|slea|inch beach|galway|coast|cliff|kinsale/.test(text)) chips.add('Coastal Views');
+  if (/zoo|wildlife|sheepdog|farm|animal|fota/.test(text)) chips.add('Wildlife');
+  if (/castle|kells|clonmacnoise|bunratty/.test(text)) chips.add('Castle Day');
+  if (/dingle|galway|rain|weather/.test(text)) chips.add('Rain Possible');
+  if (chips.size < 3) chips.add(day.distanceMiles ? 'Scenic' : 'Easy Pace');
+  return [...chips].slice(0, 4);
+}
+
+function smartNotes(day: DayPlan) {
+  if (day.base === 'In flight') return ['Arrive rested and hydrated', 'Keep passports and documents handy', 'Use carry-on essentials'];
+  if (day.base === 'Travel home') return ['Pack confirmations the night before', 'Keep receipts and passports together', 'Leave extra time for Dublin Airport'];
+  const notes = ['Keep the day flexible for family energy', 'Check opening hours before booking'];
+  if (day.distanceMiles) notes.unshift(day.distanceMiles >= 120 ? 'Plan one real scenic break' : 'Ease into left-side driving');
+  if (day.lodging) notes.push('Confirm parking and check-in details');
+  if (day.stops.some((stop) => stop.kind === 'activity')) notes.push('Pre-book timed entries where helpful');
+  return notes.slice(0, 4);
+}
+
+function aiTip(day: DayPlan) {
+  if (day.base === 'In flight') return 'Consider an overnight flight strategy so the first Dublin day stays light.';
+  if (day.distanceMiles && day.distanceMiles >= 130) return 'This is a long relocation day. Add a lunch stop and one low-pressure scenic break.';
+  if (/dingle|sheepdog/i.test(`${day.title} ${day.notes}`)) return 'Keep cash ready for rural stops and recheck sheepdog times close to travel.';
+  if (/dublin/i.test(day.base)) return 'Use Dublin days for transit-friendly plans before the rental car begins.';
+  if (/cork|kilkenny/i.test(day.base)) return 'Keep castle and garden plans weather-flexible, with one indoor backup.';
+  return 'Ask the itinerary agent for kid-friendly lunch options near this route.';
+}
+
+function weatherForDay(day: DayPlan) {
+  const key = `${day.base} ${day.title}`.toLowerCase();
+  if (key.includes('galway')) return { label: 'Showers', temp: '55F', Icon: CloudRain };
+  if (key.includes('dingle')) return { label: 'Rain likely', temp: '57F', Icon: CloudRain };
+  if (key.includes('cork')) return { label: 'Cloudy', temp: '58F', Icon: Cloud };
+  if (key.includes('kilkenny')) return { label: 'Bright', temp: '64F', Icon: Sun };
+  return { label: 'Cloudy', temp: '62F', Icon: Cloud };
+}
+
+function costRange(day: DayPlan) {
+  const cash = (day.paymentTags || fallbackPaymentTags(day)).find((tag) => tag.kind === 'cash');
+  if (cash?.minCashEur !== undefined && cash.maxCashEur !== undefined) return `EUR ${cash.minCashEur}-${cash.maxCashEur}`;
+  return day.distanceMiles ? 'EUR 60-120' : 'EUR 30-80';
+}
+
+function familyMood(day: DayPlan) {
+  if (day.distanceMiles && day.distanceMiles >= 130) return 'Adventure';
+  if (day.base === 'In flight' || day.base === 'Travel home') return 'Focused';
+  if (day.distanceMiles) return 'Scenic';
+  return 'Relaxed';
+}
+
+function completedTaskCount(tasks?: TasksResponse) {
+  return tasks?.summary.done ?? tasks?.items.filter((task) => task.status === 'done').length ?? 0;
+}
+
+function ItineraryHero({ trip, days, travelerCount }: { trip?: Trip; days: DayPlan[]; travelerCount: number }) {
+  const countdown = daysUntilTrip(trip?.startDate);
+  const derivedKm = Math.round(days.reduce((sum, day) => sum + (day.distanceMiles || 0), 0) * 1.609);
+  const roadTripKm = Math.max(1200, Math.ceil(derivedKm / 100) * 100);
+  const cityCount = Math.max(6, new Set(days.map((day) => day.base).filter((base) => !/flight|travel home/i.test(base))).size);
+  return (
+    <section className="itinerary-hero">
+      <div className="itinerary-hero-copy">
+        <p className="itinerary-greeting">Good afternoon, Raphael family</p>
+        <h1>Your Ireland Adventure</h1>
+        <p>{days.length} unforgettable days across Ireland with the Raphael family.</p>
+      </div>
+      <div className="itinerary-route-path" aria-label="Trip route">
+        {routeChapters.map((stop) => (
+          <span className="journey-stop" key={stop.key}>
+            <span className="journey-stop-node"><img src={stop.image} alt="" aria-hidden="true" /></span>
+            <strong>{stop.title}</strong>
+            <small>{stop.label}</small>
+          </span>
+        ))}
+      </div>
+      <div className="itinerary-metrics" aria-label="Trip metrics">
+        <div><CalendarDays size={24} /><strong>{days.length}</strong><span>Days</span></div>
+        <div><Users size={24} /><strong>{travelerCount}</strong><span>Travelers</span></div>
+        <div><Car size={24} /><strong>{roadTripKm.toLocaleString()}+ km</strong><span>Road Trip</span></div>
+        <div><Hotel size={24} /><strong>{cityCount}</strong><span>Cities</span></div>
+        <div><Sparkles size={24} /><strong>{countdown ?? '...'}</strong><span>Days to go</span></div>
+      </div>
+    </section>
+  );
+}
+
+function ItineraryRouteTimeline({ activeKey }: { activeKey: string }) {
+  return (
+    <section className="itinerary-sticky-route" aria-label="Sticky route timeline">
+      {routeChapters.map((stop) => (
+        <span className={`mini-route-stop ${activeKey === stop.key ? 'active' : ''}`} key={stop.key}>
+          <span><img src={stop.image} alt="" aria-hidden="true" /></span>
+          <strong>{stop.title}</strong>
+        </span>
+      ))}
+    </section>
+  );
+}
+
+function JourneyMiniMap({ activeKey }: { activeKey: string }) {
+  return (
+    <section className="journey-map-card" aria-label="Sticky mini Ireland route map">
+      <div className="journey-map-art">
+        <img src={itineraryAssets.map} alt="" aria-hidden="true" />
+        {routeChapters.slice(1, 7).map((stop, index) => (
+          <span className={`map-pulse map-pulse-${index + 1} ${activeKey === stop.key ? 'active' : ''}`} key={stop.key} />
+        ))}
+      </div>
+      <h2>Route Map</h2>
+      <p>Dublin to Kilkenny, Cork, Dingle, Galway, and back east for the flight home.</p>
+    </section>
+  );
+}
+
+function ItineraryChapterCard({
+  day,
+  sources,
+  isActive,
+  isNotesOpen,
+  noteValue,
+  setRef,
+  onToggleNotes,
+  onNoteChange,
+  onSave
+}: {
+  day: DayPlan;
+  sources: SourceLink[];
+  isActive: boolean;
+  isNotesOpen: boolean;
+  noteValue: string;
+  setRef: (node: HTMLElement | null) => void;
+  onToggleNotes: () => void;
+  onNoteChange: (value: string) => void;
+  onSave: () => Promise<void>;
+}) {
+  const weather = weatherForDay(day);
+  return (
+    <article className={`itinerary-day-card ${isActive ? 'active' : ''}`} ref={setRef} data-day-id={day.id}>
+      <aside className="itinerary-day-rail">
+        <span>Day</span>
+        <strong>{day.day}</strong>
+        <i aria-hidden="true" />
+      </aside>
+      <div className="itinerary-day-image">
+        <img src={itineraryBanner(day)} alt="" aria-hidden="true" />
+      </div>
+      <div className="itinerary-day-main">
+        <div className="itinerary-day-title-row">
+          <div>
+            <span className="itinerary-date">{day.dateLabel}</span>
+            <h3>{day.title}</h3>
+            <p>{day.route || `${day.base} - ${day.driveTime || 'Local day'}`}</p>
+          </div>
+          <a className="itinerary-directions" href={googleMapsUrl(day)} target="_blank" rel="noreferrer">
+            <Route size={16} /> Directions
+          </a>
+        </div>
+        <div className="itinerary-chip-row">
+          {dayChips(day).map((chip) => <span key={chip}>{chip}</span>)}
+        </div>
+        <div className="itinerary-stops">
+          {day.stops.slice(0, 5).map((stop) => <span key={stop.id}>{stop.name}</span>)}
+        </div>
+        {day.lodging && <p className="itinerary-lodging"><Hotel size={16} /> {day.lodging.name} - {money.format(day.lodging.nightlyEstimate)}/night</p>}
+        <div className="itinerary-note-shell">
+          <button type="button" onClick={onToggleNotes} aria-expanded={isNotesOpen} aria-controls={`notes-${day.id}`}>
+            <StickyNote size={16} /> Travel Notes <ChevronDown size={15} />
+          </button>
+          {isNotesOpen && (
+            <div className="itinerary-note-editor" id={`notes-${day.id}`}>
+              <textarea
+                value={noteValue}
+                onChange={(event) => onNoteChange(event.target.value)}
+                aria-label={`Travel notes for day ${day.day}`}
+              />
+              <button className="itinerary-save-note" type="button" onClick={() => void onSave()}><Save size={15} /> Save Notes</button>
+            </div>
+          )}
+        </div>
+        <div className="itinerary-source-payments">
+          <SourceChips ids={day.sourceIds || day.lodging?.sourceIds || day.stops.flatMap((stop) => stop.sourceIds || [])} sources={sources} />
+          <PaymentTags day={day} />
+        </div>
+      </div>
+      <aside className="itinerary-day-side">
+        <div className="smart-note-panel">
+          <h4>Smart Notes</h4>
+          {smartNotes(day).map((note) => <span key={note}><CheckCircle2 size={14} /> {note}</span>)}
+        </div>
+        <div className="ai-tip-panel">
+          <strong><Sparkles size={14} /> AI Tip</strong>
+          <p>{aiTip(day)}</p>
+        </div>
+      </aside>
+      <footer className="itinerary-day-stats">
+        <div><Car size={24} /><span>Driving</span><strong>{day.driveTime || 'No Ireland driving today'}</strong></div>
+        <div><Banknote size={24} /><span>Est. Cost</span><strong>{costRange(day)}</strong></div>
+        <div><weather.Icon size={24} /><span>Weather</span><strong>{weather.label} {weather.temp}</strong></div>
+        <div><Smile size={24} /><span>Family Mood</span><strong>{familyMood(day)}</strong></div>
+      </footer>
+    </article>
+  );
+}
+
+function ItineraryWidgetRail({
+  days,
+  budget,
+  tasks,
+  activeDay,
+  activeKey,
+  onAskAgent
+}: {
+  days: DayPlan[];
+  budget?: BudgetResponse;
+  tasks?: TasksResponse;
+  activeDay?: DayPlan;
+  activeKey: string;
+  onAskAgent: (prompt: string, focusDayId?: string) => void;
+}) {
+  const longestDay = [...days].sort((a, b) => (b.distanceMiles || 0) - (a.distanceMiles || 0))[0];
+  const totalTasks = tasks?.summary.total || tasks?.items.length || 0;
+  const doneTasks = completedTaskCount(tasks);
+  const readiness = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 68;
+  const planned = budget?.summary.planned || 0;
+  const target = budget?.summary.target || 1;
+  const budgetPercent = Math.min(100, Math.round((planned / target) * 100));
+  return (
+    <aside className="itinerary-widget-rail">
+      <section className="itinerary-widget">
+        <h2><Cloud size={17} /> Weather Along Route</h2>
+        {weatherOutlook.map(({ city, temp, note, Icon }) => (
+          <div className="weather-row" key={city}>
+            <span>{city}</span><Icon size={15} /><strong>{temp}</strong><small>{note}</small>
+          </div>
+        ))}
+      </section>
+      <section className="itinerary-widget">
+        <h2><Car size={17} /> Drive Intelligence</h2>
+        <p>Day {longestDay?.day || 1} is your longest driving day{longestDay?.driveTime ? ` (${longestDay.driveTime})` : ''}. Plan a scenic break.</p>
+        <button type="button" onClick={() => onAskAgent(`Suggest kid-friendly lunch stops and scenic breaks for Day ${longestDay?.day || activeDay?.day || 1}.`, longestDay?.id || activeDay?.id)}>
+          View driving insights
+        </button>
+      </section>
+      <section className="itinerary-widget">
+        <h2><Sparkles size={17} /> AI Travel Assistant</h2>
+        <p>Would you like me to suggest kid-friendly lunch stops between Cork and Dingle?</p>
+        <button type="button" onClick={() => onAskAgent('Suggest kid-friendly lunch stops between Cork and Dingle.', activeDay?.id)}>
+          Get Suggestions
+        </button>
+      </section>
+      <section className="itinerary-widget budget-mini">
+        <h2><PiggyBank size={17} /> Budget Tracker</h2>
+        <div className="budget-donut" style={{ '--budget': budgetPercent } as CSSProperties}><span>{budgetPercent}%</span></div>
+        <p><strong>{money.format(planned)}</strong> of {money.format(target)} planned</p>
+      </section>
+      <section className="itinerary-widget progress-mini">
+        <h2><CheckCircle2 size={17} /> Journey Progress</h2>
+        <div className="mini-progress-ring" style={{ '--progress': readiness } as CSSProperties}><strong>{readiness}%</strong><span>Ready</span></div>
+        <p>{doneTasks} of {totalTasks || 12} checklist items complete.</p>
+      </section>
+      <JourneyMiniMap activeKey={activeKey} />
+    </aside>
+  );
+}
+
+function ItineraryView({
+  trip,
+  days,
+  budget,
+  tasks,
+  familyMembers,
+  sources,
+  currentDayCount,
+  onSave,
+  onAsk,
+  onApplyDraft,
+  onDismissDraft
+}: {
+  trip?: Trip;
+  days: DayPlan[];
+  budget?: BudgetResponse;
+  tasks?: TasksResponse;
+  familyMembers?: FamilyMember[];
+  sources: SourceLink[];
+  currentDayCount: number;
+  onSave: (updates: Partial<DayPlan>[]) => Promise<void>;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
+  const [editing, setEditing] = useState<Record<string, string>>({});
+  const [openNotes, setOpenNotes] = useState<Record<string, boolean>>({});
+  const [activeDayId, setActiveDayId] = useState(days[0]?.id || '');
+  const [agentCommand, setAgentCommand] = useState<AgentCommand | undefined>();
+  const dayRefs = useRef(new Map<string, HTMLElement>());
+  const travelerCount = familyMembers?.length || trip?.travelers || 5;
+  const activeDay = days.find((day) => day.id === activeDayId) || days[0];
+  const activeKey = activeRouteKey(activeDay);
+
+  useEffect(() => {
+    if (!days.some((day) => day.id === activeDayId)) setActiveDayId(days[0]?.id || '');
+  }, [activeDayId, days]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      const dayId = visible?.target.getAttribute('data-day-id');
+      if (dayId) setActiveDayId(dayId);
+    }, { rootMargin: '-30% 0px -55% 0px', threshold: [0.2, 0.45, 0.7] });
+    dayRefs.current.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [days]);
+
+  const registerDay = (id: string) => (node: HTMLElement | null) => {
+    if (node) dayRefs.current.set(id, node);
+    else dayRefs.current.delete(id);
+  };
+
+  const askAgent = (prompt: string, focusDayId?: string) => {
+    setAgentCommand({ prompt, focusDayId, nonce: Date.now() });
+  };
+
+  return (
+    <section className="itinerary-dashboard">
+      <div className="mobile-journey-bar">Currently exploring {activeDay?.base || 'Ireland'}</div>
+      <ItineraryHero trip={trip} days={days} travelerCount={travelerCount} />
+      <ItineraryRouteTimeline activeKey={activeKey} />
+      <div className="itinerary-content-grid">
+        <main className="itinerary-main-column">
+          <div className="itinerary-section-head">
+            <h2>Itinerary</h2>
+            <p>Adventure chapters for every saved day, with notes tucked into each card.</p>
+          </div>
+          <div className="itinerary-card-stack">
+            {days.map((day) => (
+              <ItineraryChapterCard
+                day={day}
+                sources={sources}
+                isActive={day.id === activeDay?.id}
+                isNotesOpen={Boolean(openNotes[day.id])}
+                noteValue={editing[day.id] ?? day.notes}
+                setRef={registerDay(day.id)}
+                onToggleNotes={() => setOpenNotes((current) => ({ ...current, [day.id]: !current[day.id] }))}
+                onNoteChange={(value) => setEditing((current) => ({ ...current, [day.id]: value }))}
+                onSave={() => onSave([{ id: day.id, notes: editing[day.id] ?? day.notes }])}
+                key={day.id}
+              />
+            ))}
+          </div>
+        </main>
+        <ItineraryWidgetRail days={days} budget={budget} tasks={tasks} activeDay={activeDay} activeKey={activeKey} onAskAgent={askAgent} />
+      </div>
+      <ItineraryAgentBubble
+        days={days}
+        sources={sources}
+        currentDayCount={currentDayCount}
+        command={agentCommand}
         onAsk={onAsk}
         onApplyDraft={onApplyDraft}
         onDismissDraft={onDismissDraft}
@@ -655,6 +1091,7 @@ function ItineraryAgentBubble({
   days,
   sources,
   currentDayCount,
+  command,
   onAsk,
   onApplyDraft,
   onDismissDraft
@@ -662,6 +1099,7 @@ function ItineraryAgentBubble({
   days: DayPlan[];
   sources: SourceLink[];
   currentDayCount: number;
+  command?: AgentCommand;
   onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
   onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
   onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
@@ -679,6 +1117,15 @@ function ItineraryAgentBubble({
       setSelectedDayId('all');
     }
   }, [days, selectedDayId]);
+
+  useEffect(() => {
+    if (!command) return;
+    setOpen(true);
+    setPrompt(command.prompt);
+    if (command.focusDayId && days.some((day) => day.id === command.focusDayId)) {
+      setSelectedDayId(command.focusDayId);
+    }
+  }, [command, days]);
 
   const submit = async () => {
     if (!prompt.trim()) return;
@@ -1075,7 +1522,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -1158,7 +1605,7 @@ export default function App() {
         ) : (
           <>
             {tab === 'dashboard' && <Dashboard state={state} setTab={selectTab} />}
-            {tab === 'itinerary' && <ItineraryView days={state.itinerary} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
+            {tab === 'itinerary' && <ItineraryView trip={state.trip} days={state.itinerary} budget={state.budget} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
             {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
