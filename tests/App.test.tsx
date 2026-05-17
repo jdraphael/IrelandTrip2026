@@ -763,6 +763,68 @@ describe('Ireland trip app', () => {
     expect(screen.getByRole('button', { name: /Unlock Planner/i })).toBeDisabled();
   });
 
+  it('renders the Ireland Research Concierge command center shell', async () => {
+    vi.stubGlobal('fetch', stubChecklistApp());
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Research Agent/i }));
+
+    expect(await screen.findByRole('heading', { name: /Ireland Research Concierge/i })).toBeInTheDocument();
+    expect(screen.getByText(/^Ireland Concierge AI$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Ask Ireland Concierge AI/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Quick Answers/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Smart Planning/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Deep Expedition Research/i })).toBeInTheDocument();
+    expect(screen.getByText(/AI Travel Intelligence/i)).toBeInTheDocument();
+    expect(screen.getByText(/Get Inspired/i)).toBeInTheDocument();
+    expect(screen.getByText(/Research Inspiration Cards/i)).toBeInTheDocument();
+  });
+
+  it('sends quick and deep research modes through the existing research API contract', async () => {
+    const baseFetchMock = stubChecklistApp();
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/research') && init?.method === 'POST') {
+        const body = JSON.parse(init.body as string);
+        return Promise.resolve(Response.json({
+          id: `answer-${body.deep ? 'deep' : 'quick'}`,
+          question: body.question,
+          answer: 'I prepared sourced guidance for your Ireland trip.',
+          createdAt: '2026-05-17T00:00:00Z',
+          sources: [],
+          warnings: [],
+          drafts: []
+        }));
+      }
+      return baseFetchMock(url, init);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /Research Agent/i }));
+
+    const input = await screen.findByLabelText(/Ask Ireland Concierge AI/i);
+    fireEvent.change(input, { target: { value: 'Which castles require advance tickets?' } });
+    fireEvent.click(screen.getByRole('button', { name: /Ask AI/i }));
+
+    expect(await screen.findAllByText('I prepared sourced guidance for your Ireland trip.')).not.toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: /Deep Expedition Research/i }));
+    fireEvent.change(input, { target: { value: 'Best scenic drive in Kerry?' } });
+    fireEvent.click(screen.getByRole('button', { name: /Ask AI/i }));
+    await screen.findByText('Best scenic drive in Kerry?');
+
+    const researchCalls = fetchMock.mock.calls.filter(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
+    expect(JSON.parse((researchCalls[0]?.[1] as RequestInit).body as string)).toMatchObject({
+      question: 'Which castles require advance tickets?',
+      deep: false
+    });
+    expect(JSON.parse((researchCalls[1]?.[1] as RequestInit).body as string)).toMatchObject({
+      question: 'Best scenic drive in Kerry?',
+      deep: true
+    });
+  });
+
   it('renders research draft review cards and refreshes after applying a draft', async () => {
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
@@ -813,8 +875,8 @@ describe('Ireland trip app', () => {
     render(<App />);
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getByRole('button', { name: /Research Agent/i }));
-    await userEvent.type(screen.getByPlaceholderText(/Ask about tickets/i), 'Please add Rock of Cashel to Day 5.');
-    await userEvent.click(screen.getByRole('button', { name: /Ask with Sources/i }));
+    await userEvent.type(screen.getByLabelText(/Ask Ireland Concierge AI/i), 'Please add Rock of Cashel to Day 5.');
+    await userEvent.click(screen.getByRole('button', { name: /Ask AI/i }));
 
     expect(await screen.findByText('Add Rock of Cashel to Day 5')).toBeInTheDocument();
     expect(screen.getByText('Adds Rock of Cashel as a Day 5 stop.')).toBeInTheDocument();

@@ -67,7 +67,9 @@ const dashboardAssetStyle = {
   '--asset-empty': `url(${dashboardAssets.emptyState})`,
   '--asset-login': `url(${dashboardAssets.loginBackground})`,
   '--asset-map': `url(${dashboardAssets.irelandMap})`,
-  '--asset-chat': `url(${dashboardAssets.chatBackground})`
+  '--asset-chat': `url(${dashboardAssets.chatBackground})`,
+  '--asset-research-hero': `url(${dashboardAssets.researchHero})`,
+  '--asset-research-map': `url(${dashboardAssets.researchMap})`
 } as CSSProperties;
 
 function googleMapsUrl(day: DayPlan) {
@@ -1221,50 +1223,332 @@ function ItineraryAgentBubble({
   );
 }
 
-function ResearchView({ history, currentDayCount, onAsk, onApplyDraft, onDismissDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>; onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>; onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
+type ResearchMode = 'quick' | 'smart' | 'deep';
+
+const researchModes: Array<{ id: ResearchMode; label: string; description: string; icon: typeof Search }> = [
+  { id: 'quick', label: 'Quick Answers', description: 'Fast sourced guidance for focused trip questions.', icon: Sparkles },
+  { id: 'smart', label: 'Smart Planning', description: 'Balanced AI planning for routes, timing, and family fit.', icon: Route },
+  { id: 'deep', label: 'Deep Expedition Research', description: 'Deeper source review for consequential decisions.', icon: Search }
+];
+
+const promptSuggestions = [
+  'Which castles require advance tickets?',
+  'Best kid-friendly stops between Cork and Dingle?',
+  'Where should we stay in Galway with kids?',
+  'What is the best scenic drive in Kerry?'
+];
+
+const inspirationCards = [
+  {
+    title: 'Castles & History',
+    text: "Discover Ireland's most magical castles.",
+    image: dashboardAssets.researchCardCastles,
+    icon: Castle,
+    prompt: 'Best castles for kids near Galway'
+  },
+  {
+    title: 'Family Experiences',
+    text: 'Sheepdogs, wildlife parks, and family adventures.',
+    image: dashboardAssets.researchCardFamily,
+    icon: Users,
+    prompt: 'Best family experiences with animals in Ireland'
+  },
+  {
+    title: 'Scenic Drives',
+    text: 'Breathtaking routes and coastal wonders.',
+    image: dashboardAssets.researchCardScenic,
+    icon: Route,
+    prompt: 'What is the most scenic drive in Kerry?'
+  },
+  {
+    title: 'Hidden Gems',
+    text: 'AI-curated locations most tourists miss.',
+    image: dashboardAssets.researchCardHiddenGems,
+    icon: Sparkles,
+    prompt: 'Find hidden gems near Dingle for families'
+  },
+  {
+    title: 'Weather & Packing',
+    text: 'Know what to bring for every region.',
+    image: dashboardAssets.researchCardWeather,
+    icon: CloudRain,
+    prompt: 'What should we pack for western Ireland rain?'
+  }
+];
+
+const intelligenceWidgets = [
+  { title: 'Weather Intelligence', body: 'Rain likely in Galway during your stay.', action: 'View full forecast', icon: CloudRain },
+  { title: 'Route Intelligence', body: 'Day 9 exceeds ideal driving duration for younger travelers.', action: 'View driving analysis', icon: Car },
+  { title: 'Attraction Alerts', body: 'Book of Kells tickets can sell quickly for your dates.', action: 'Check availability', icon: Bell },
+  { title: 'AI Packing Suggestion', body: 'Bring waterproof jackets for western Ireland.', action: 'View packing list', icon: ShieldCheck }
+];
+
+function researchModeContext(mode: ResearchMode) {
+  const selected = researchModes.find((item) => item.id === mode) || researchModes[0];
+  return [
+    'Request surface: Ireland Concierge AI research command center.',
+    `Research mode: ${selected.label}.`,
+    selected.description,
+    'Save behavior: propose itinerary, budget, or checklist drafts only when the user asks for changes; never mutate saved trip data automatically.'
+  ].join('\n');
+}
+
+function ResearchSessionCard({
+  answer,
+  index,
+  currentDayCount,
+  onApplyDraft,
+  onDismissDraft
+}: {
+  answer: ResearchAnswer;
+  index: number;
+  currentDayCount: number;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}) {
+  const [favorite, setFavorite] = useState(false);
+  const sessionImage = index % 2 === 0 ? dashboardAssets.researchSessionCastles : dashboardAssets.researchSessionScenic;
+  const sources = answer.sources || [];
+  const warnings = answer.warnings || [];
+  const drafts = answer.drafts || [];
+  const answerText = answer.answer || 'Ireland Concierge AI is preparing this research session.';
+  const sourceCount = sources.length;
+
+  return (
+    <details className="research-session-card" open={index === 0}>
+      <summary>
+        <img src={sessionImage} alt="" aria-hidden="true" />
+        <div className="research-session-main">
+          <span className="research-session-tag"><Castle size={14} /> AI research session</span>
+          <h3>{answer.question}</h3>
+          <p>{answerText.split('\n')[0]}</p>
+          <div className="research-session-pills">
+            <span><MapPinned size={14} /> Ireland route context</span>
+            <span><Smile size={14} /> Family friendly</span>
+            <span><ShieldCheck size={14} /> {sourceCount || 'Official-first'} sources</span>
+          </div>
+        </div>
+        <div className="research-session-actions" aria-label="Session actions">
+          <button type="button" onClick={(event) => { event.preventDefault(); setFavorite((current) => !current); }}>
+            <Save size={15} /> {favorite ? 'Saved' : 'Save to Itinerary'}
+          </button>
+          <button type="button" onClick={(event) => { event.preventDefault(); setFavorite((current) => !current); }}>
+            <Sparkles size={15} /> {favorite ? 'Favorited' : 'Add to Favorites'}
+          </button>
+          <span><ChevronDown size={18} /></span>
+        </div>
+      </summary>
+      <div className="research-session-expanded">
+        <div>
+          <h4>AI Summary</h4>
+          <AnswerText text={answerText} />
+          {warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+        </div>
+        <div className="session-map-preview">
+          <img src={dashboardAssets.researchMap} alt="" aria-hidden="true" />
+          <button type="button">View Map</button>
+        </div>
+        <div>
+          <h4>Sources ({sourceCount})</h4>
+          <div className="source-row">
+            {sources.length === 0 && <span className="source-chip">Source review pending</span>}
+            {sources.map((source) => (
+              <a className="source-chip" key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.title}<ExternalLink size={13} /></a>
+            ))}
+          </div>
+          <h4>Save Research Directly Into Adventure</h4>
+          <div className="research-save-grid">
+            <button type="button"><Save size={15} /> Save to Itinerary</button>
+            <button type="button"><FileCheck2 size={15} /> Add to Checklist</button>
+            <button type="button"><MoreHorizontal size={15} /> Compare Options</button>
+          </div>
+        </div>
+      </div>
+      {drafts.map((draft) => (
+        <DraftReviewCard draft={draft} sources={sources} currentDayCount={currentDayCount} onApply={onApplyDraft} onDismiss={onDismissDraft} key={draft.id} />
+      ))}
+    </details>
+  );
+}
+
+function ResearchConcierge({ history, currentDayCount, onAsk, onApplyDraft, onDismissDraft }: { history: ResearchAnswer[]; currentDayCount: number; onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>; onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>; onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void> }) {
   const [question, setQuestion] = useState('');
-  const [deep, setDeep] = useState(false);
+  const [mode, setMode] = useState<ResearchMode>('smart');
   const [busy, setBusy] = useState(false);
+  const [agentError, setAgentError] = useState('');
 
   const submit = async () => {
     if (!question.trim()) return;
     setBusy(true);
+    setAgentError('');
     try {
-      await onAsk(question, deep);
+      await onAsk(question.trim(), mode === 'deep', researchModeContext(mode));
       setQuestion('');
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : 'Unable to reach Ireland Concierge AI.');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="research-layout">
-      <div className="agent-box">
-        <h2>Research Agent</h2>
-        <p>Ask planning questions. Answers use an official-first source policy and never change saved trip data automatically.</p>
-        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about tickets, drive timing, family seating, rental insurance, lodging, or kid-friendly alternatives..." />
-        <label className="checkbox"><input type="checkbox" checked={deep} onChange={(event) => setDeep(event.target.checked)} /> Use deeper research</label>
-        <button className="button primary full" onClick={submit} disabled={busy || !question.trim()}>
-          {busy ? <Loader2 className="spin" size={17} /> : <Search size={17} />} Ask with Sources
-        </button>
-      </div>
-      <div className="answer-stack">
-        {history.length === 0 && <div className="empty">No research yet. Try asking which attractions need advance tickets.</div>}
-        {history.map((answer) => (
-          <article className="answer-card" key={answer.id}>
-            <h3>{answer.question}</h3>
-            <AnswerText text={answer.answer} />
-            {answer.warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
-            <div className="source-row">
-              {answer.sources.map((source) => (
-                <a className="source-chip" key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.title}<ExternalLink size={13} /></a>
-              ))}
+    <section className="research-concierge">
+      <div className="research-command-grid">
+        <div className="research-main">
+          <section className="research-hero">
+            <div className="research-hero-copy">
+              <span className="concierge-brand"><Bot size={16} /> Ireland Concierge AI</span>
+              <h2>Ireland Research Concierge</h2>
+              <p>Discover smarter routes, hidden gems, family-friendly stops, and trusted recommendations powered by AI.</p>
             </div>
-            {answer.drafts.map((draft) => (
-              <DraftReviewCard draft={draft} sources={answer.sources} currentDayCount={currentDayCount} onApply={onApplyDraft} onDismiss={onDismissDraft} key={draft.id} />
+            <form className="research-prompt-panel" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+              <div className="research-prompt-orb"><Sparkles size={24} /></div>
+              <label className="sr-only" htmlFor="research-concierge-input">Ask Ireland Concierge AI</label>
+              <input
+                id="research-concierge-input"
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                placeholder="Ask anything about your Ireland trip..."
+                autoComplete="off"
+              />
+              <button type="submit" disabled={busy || !question.trim()} aria-label="Ask AI">
+                {busy ? <Loader2 className="spin" size={20} /> : <Sparkles size={20} />}
+                <span>Ask AI</span>
+              </button>
+              <div className="research-prompt-chips" aria-label="Suggested research prompts">
+                {promptSuggestions.map((prompt) => (
+                  <button type="button" key={prompt} onClick={() => setQuestion(prompt)}>{prompt}</button>
+                ))}
+              </div>
+            </form>
+            <div className="research-mode-bar" role="group" aria-label="AI Research Modes">
+              <span>AI Research Mode</span>
+              {researchModes.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    type="button"
+                    className={mode === item.id ? 'active' : ''}
+                    onClick={() => setMode(item.id)}
+                    key={item.id}
+                  >
+                    <Icon size={16} /> {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            {agentError && <p className="warning">{agentError}</p>}
+            <aside className="research-map-panel" aria-label="AI visualization panel">
+              <div className="research-map-head">
+                <span><MapPinned size={15} /> Your Ireland Route</span>
+                <button type="button" aria-label="Expand route map"><MoreHorizontal size={16} /></button>
+              </div>
+              <img src={dashboardAssets.researchMap} alt="" aria-hidden="true" />
+              <div className="research-map-nodes" aria-hidden="true">
+                <span>Dublin</span>
+                <span>Kilkenny</span>
+                <span>Cork</span>
+                <span>Dingle</span>
+                <span>Galway</span>
+              </div>
+              <button className="research-map-cta" type="button">Explore Map <ExternalLink size={14} /></button>
+            </aside>
+          </section>
+
+          <section className="research-inspiration" aria-labelledby="research-inspiration-title">
+            <div className="research-section-title">
+              <div>
+                <h3 id="research-inspiration-title">Get Inspired</h3>
+                <p>Research Inspiration Cards curated to spark your next adventure</p>
+              </div>
+              <button type="button" aria-label="Next inspiration card"><ChevronDown size={18} /></button>
+            </div>
+            <div className="research-card-rail">
+              {inspirationCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <button className="research-inspiration-card" type="button" key={card.title} onClick={() => setQuestion(card.prompt)}>
+                    <img src={card.image} alt="" aria-hidden="true" />
+                    <span><Icon size={18} /></span>
+                    <strong>{card.title}</strong>
+                    <small>{card.text}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="research-sessions" aria-labelledby="research-sessions-title">
+            <div className="research-section-title">
+              <div>
+                <h3 id="research-sessions-title">Your Research Sessions</h3>
+                <p>Saved questions and AI-powered discoveries</p>
+              </div>
+              <div className="research-session-tools">
+                <button type="button"><Search size={15} /> All Topics</button>
+                <label>
+                  <span className="sr-only">Search your research</span>
+                  <input placeholder="Search your research..." />
+                </label>
+              </div>
+            </div>
+            {history.length === 0 && (
+              <div className="research-idle">
+                <div>
+                  <span><Sparkles size={18} /> Expedition Intelligence</span>
+                  <h3>Ask the concierge to scan routes, tickets, weather, and family pacing.</h3>
+                  <p>Try a prompt above or choose an inspiration card to begin building sourced research sessions for your adventure.</p>
+                </div>
+                <img src={dashboardAssets.researchMap} alt="" aria-hidden="true" />
+              </div>
+            )}
+            {history.map((answer, index) => (
+              <ResearchSessionCard
+                answer={answer}
+                index={index}
+                currentDayCount={currentDayCount}
+                onApplyDraft={onApplyDraft}
+                onDismissDraft={onDismissDraft}
+                key={answer.id}
+              />
             ))}
+          </section>
+        </div>
+        <aside className="research-intelligence" aria-label="AI Travel Intelligence">
+          <h3>AI Travel Intelligence</h3>
+          {intelligenceWidgets.map((widget) => {
+            const Icon = widget.icon;
+            return (
+              <article className="research-widget" key={widget.title}>
+                <Icon size={24} />
+                <div>
+                  <h4>{widget.title}</h4>
+                  <p>{widget.body}</p>
+                  <button type="button">{widget.action} <ExternalLink size={13} /></button>
+                </div>
+              </article>
+            );
+          })}
+          <article className="research-widget scenic-score">
+            <Route size={24} />
+            <div>
+              <h4>Scenic Score</h4>
+              {[
+                ['Scenic', '9.4/10'],
+                ['Relaxed', '8.6/10'],
+                ['Family Friendly', '9.2/10'],
+                ['Adventure', '8.8/10']
+              ].map(([label, value]) => (
+                <div className="score-row" key={label}>
+                  <span>{label}</span>
+                  <meter min="0" max="10" value={Number(value.split('/')[0])}>{value}</meter>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+              <button type="button">How scores work <ExternalLink size={13} /></button>
+            </div>
           </article>
-        ))}
+        </aside>
       </div>
     </section>
   );
@@ -1522,7 +1806,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -1606,7 +1890,7 @@ export default function App() {
           <>
             {tab === 'dashboard' && <Dashboard state={state} setTab={selectTab} />}
             {tab === 'itinerary' && <ItineraryView trip={state.trip} days={state.itinerary} budget={state.budget} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
-            {tab === 'research' && <ResearchView history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
+            {tab === 'research' && <ResearchConcierge history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
             {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
             {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}

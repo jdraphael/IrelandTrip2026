@@ -17,7 +17,16 @@ export const dashboardAssets = {
   emptyState: '/dashboard-assets/generated/empty-state.webp',
   loginBackground: '/dashboard-assets/generated/login-background.webp',
   irelandMap: '/dashboard-assets/generated/ireland-map.webp',
-  chatBackground: '/dashboard-assets/generated/chat-background.webp'
+  chatBackground: '/dashboard-assets/generated/chat-background.webp',
+  researchHero: '/dashboard-assets/generated/research-hero-command-center.png',
+  researchMap: '/dashboard-assets/generated/research-map-command-center.png',
+  researchCardCastles: '/dashboard-assets/generated/research-card-castles.png',
+  researchCardFamily: '/dashboard-assets/generated/research-card-family.png',
+  researchCardScenic: '/dashboard-assets/generated/research-card-scenic.png',
+  researchCardHiddenGems: '/dashboard-assets/generated/research-card-hidden-gems.png',
+  researchCardWeather: '/dashboard-assets/generated/research-card-weather.png',
+  researchSessionCastles: '/dashboard-assets/generated/research-session-castles.png',
+  researchSessionScenic: '/dashboard-assets/generated/research-session-scenic.png'
 } as const;
 
 export const itineraryThumbnailAssets = [
