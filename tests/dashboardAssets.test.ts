@@ -8,6 +8,12 @@ describe('dashboard asset registry', () => {
     expect(dashboardAssets.agentButton).toBe('/dashboard-assets/generated/agent-button.png');
     expect(dashboardAssets.bottomMobileNav).toBe('/dashboard-assets/generated/bottom-mobile-nav.png');
     expect(dashboardAssets.loginBackground).toBe('/dashboard-assets/generated/login-background.webp');
+    expect(dashboardAssets.mapExpedition).toBe('/dashboard-assets/generated/map-expedition-ireland.png');
+    expect(dashboardAssets.mapDublinBanner).toBe('/dashboard-assets/generated/map-dublin-banner.png');
+    expect(dashboardAssets.mapKilkennyPreview).toBe('/dashboard-assets/generated/map-kilkenny-preview.png');
+    expect(dashboardAssets.mapScenicCoast).toBe('/dashboard-assets/generated/map-scenic-coast.png');
+    expect(dashboardAssets.mapFogCliffs).toBe('/dashboard-assets/generated/map-fog-cliffs.png');
+    expect(dashboardAssets.mapPubMusic).toBe('/dashboard-assets/generated/map-pub-music.png');
   });
 
   it('provides all itinerary thumbnail assets in route order', () => {

@@ -26,7 +26,14 @@ export const dashboardAssets = {
   researchCardHiddenGems: '/dashboard-assets/generated/research-card-hidden-gems.png',
   researchCardWeather: '/dashboard-assets/generated/research-card-weather.png',
   researchSessionCastles: '/dashboard-assets/generated/research-session-castles.png',
-  researchSessionScenic: '/dashboard-assets/generated/research-session-scenic.png'
+  researchSessionScenic: '/dashboard-assets/generated/research-session-scenic.png',
+  mapExpedition: '/dashboard-assets/generated/map-expedition-ireland.png',
+  mapDublinBanner: '/dashboard-assets/generated/map-dublin-banner.png',
+  mapKilkennyPreview: '/dashboard-assets/generated/map-kilkenny-preview.png',
+  mapScenicCoast: '/dashboard-assets/generated/map-scenic-coast.png',
+  mapFogCliffs: '/dashboard-assets/generated/map-fog-cliffs.png',
+  mapPubMusic: '/dashboard-assets/generated/map-pub-music.png',
+  mapFamilyHub: '/dashboard-assets/generated/map-family-hub.png'
 } as const;
 
 export const itineraryThumbnailAssets = [

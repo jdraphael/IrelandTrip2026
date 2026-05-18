@@ -700,7 +700,7 @@ describe('Ireland trip app', () => {
     expect(mobileNav).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('lets the map switch from day view to all itinerary stops', async () => {
+  it('renders the cinematic expedition map with stats, layers, and a stop preview', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
@@ -718,15 +718,20 @@ describe('Ireland trip app', () => {
     render(<App />);
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getAllByRole('button', { name: /^Map$/i })[0]);
-    await userEvent.click(screen.getByRole('button', { name: /Show all stops/i }));
 
-    expect(screen.getByRole('heading', { name: /All Trip Stops/i })).toBeInTheDocument();
-    expect(screen.getByText(/2 places across 2 itinerary days/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Ireland Expedition Route/i })).toBeInTheDocument();
+    expect(screen.getByText(/12 unforgettable days across Ireland/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 travelers/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Scenic Routes layer/i })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: /Castles layer/i }));
+    expect(screen.getByRole('button', { name: /Castles layer/i })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: /Dublin Zoo stop preview/i }));
     expect(screen.getByText('Dublin Zoo')).toBeInTheDocument();
+    expect(screen.getAllByText(/Family Friendly/i).length).toBeGreaterThan(0);
   });
 
-  it('offers a mouse-wheel zoom toggle on the map', async () => {
-    vi.stubGlobal('fetch', vi.fn((url: string) => {
+  it('lets the map save offline routes and send research notes', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
       if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
       if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([
@@ -735,19 +740,24 @@ describe('Ireland trip app', () => {
       if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({ items: [], summary: { target: 15000, planned: 0, actual: 0, remainingPlanned: 15000, remainingActual: 15000, plannedPercent: 0, actualPercent: 0 } }));
       if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
       if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') return Promise.resolve(Response.json({ id: 'answer-1', question: 'Add research notes for Day 1: Dublin Zoo', answer: 'Research draft created.', createdAt: '2026-05-17T00:00:00Z', sources: [], drafts: [], warnings: [] }));
       if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
       return Promise.reject(new Error(`Unhandled URL ${url}`));
-    }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getAllByRole('button', { name: /^Map$/i })[0]);
 
-    const toggle = screen.getByRole('checkbox', { name: /Mouse wheel zoom/i });
-    expect(toggle).toBeInTheDocument();
-    expect(toggle).not.toBeChecked();
-    await userEvent.click(toggle);
-    expect(toggle).toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: /Save Offline Route/i }));
+    expect(screen.getByRole('button', { name: /Offline Route Saved/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Add Research Notes/i }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/research', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('Add research notes for Day 1: Dublin Zoo')
+    }));
   });
 
   it('shows the family passcode login before loading hosted trip data', async () => {
