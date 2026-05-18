@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Banknote, Bell, Bot, CalendarDays, Car, Castle, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, Cloud, CloudRain, CreditCard, ExternalLink, Eye, EyeOff, FileCheck2, Home, Hotel, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, Plane, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Smile, Sparkles, StickyNote, Sun, Users, X } from 'lucide-react';
-import L from 'leaflet';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
 import { ChecklistDashboard } from './components/ChecklistDashboard';
+import { CinematicMap } from './components/CinematicMap';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
 import { TravelerMenu } from './components/TravelerMenu';
 import { dashboardAssets, itineraryAssets, itineraryThumbnailAssets } from './dashboardAssets';
@@ -69,17 +69,14 @@ const dashboardAssetStyle = {
   '--asset-map': `url(${dashboardAssets.irelandMap})`,
   '--asset-chat': `url(${dashboardAssets.chatBackground})`,
   '--asset-research-hero': `url(${dashboardAssets.researchHero})`,
-  '--asset-research-map': `url(${dashboardAssets.researchMap})`
+  '--asset-research-map': `url(${dashboardAssets.researchMap})`,
+  '--asset-map-expedition': `url(${dashboardAssets.mapExpedition})`
 } as CSSProperties;
 
 function googleMapsUrl(day: DayPlan) {
   const locations = day.stops.map((stop) => `${stop.latitude},${stop.longitude}`);
   if (locations.length === 0) return 'https://www.google.com/maps';
   return `https://www.google.com/maps/dir/${locations.map(encodeURIComponent).join('/')}`;
-}
-
-function isIrelandStop(stop: { latitude: number; longitude: number }) {
-  return stop.latitude >= 51 && stop.latitude <= 56 && stop.longitude >= -11 && stop.longitude <= -5;
 }
 
 function sourceLookup(items: SourceLink[] = []) {
@@ -233,117 +230,6 @@ function PaymentTags({ day }: { day: DayPlan }) {
         </span>
       ))}
     </div>
-  );
-}
-
-function MapPanel({ days, selectedDayId, onSelectDay }: { days: DayPlan[]; selectedDayId: string; onSelectDay: (id: string) => void }) {
-  const day = days.find((item) => item.id === selectedDayId) || days[0];
-  const [mapMode, setMapMode] = useState<'day' | 'all'>('day');
-  const [wheelZoom, setWheelZoom] = useState(false);
-  const allStops = useMemo(
-    () => days.flatMap((item) => item.stops.filter(isIrelandStop).map((stop) => ({ ...stop, day: item.day, dayTitle: item.title, base: item.base }))),
-    [days]
-  );
-  const visibleStops = mapMode === 'all' ? allStops : (day?.stops || []).map((stop) => ({ ...stop, day: day.day, dayTitle: day.title, base: day.base }));
-
-  useEffect(() => {
-    if (visibleStops.length === 0) return;
-    const container = document.getElementById('trip-map');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const map = L.map(container, { scrollWheelZoom: wheelZoom });
-    const bounds = L.latLngBounds(visibleStops.map((stop) => [stop.latitude, stop.longitude]));
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    visibleStops.forEach((stop, index) => {
-      const marker = L.divIcon({
-        className: `route-marker ${mapMode === 'all' ? 'all-marker' : ''}`,
-        html: `<span>${index + 1}</span>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-      });
-      L.marker([stop.latitude, stop.longitude], { icon: marker }).addTo(map).bindPopup(`<strong>${stop.name}</strong><br>Day ${stop.day}: ${stop.dayTitle}`);
-    });
-
-    if (visibleStops.length > 1) {
-      if (mapMode === 'day') {
-        L.polyline(visibleStops.map((stop) => [stop.latitude, stop.longitude]), { color: '#0f766e', weight: 4, opacity: 0.75 }).addTo(map);
-      }
-      map.fitBounds(bounds.pad(0.25));
-    } else {
-      map.setView([visibleStops[0].latitude, visibleStops[0].longitude], 12);
-    }
-
-    return () => {
-      map.remove();
-    };
-  }, [visibleStops, mapMode, wheelZoom]);
-
-  if (!day) return <div className="empty">No itinerary days available yet.</div>;
-
-  return (
-    <section className="map-layout">
-      <div className="map-sidebar">
-        <div className="section-heading">
-          <h2>Day-by-Day Route</h2>
-          <p>Filter the map by travel day, or switch to all stops to see the full trip at once.</p>
-        </div>
-        <div className="segmented-control" aria-label="Map view mode">
-          <button className={mapMode === 'day' ? 'selected' : ''} onClick={() => setMapMode('day')}>Day view</button>
-          <button className={mapMode === 'all' ? 'selected' : ''} onClick={() => setMapMode('all')}>Show all stops</button>
-        </div>
-        <label className="map-toggle">
-          <input type="checkbox" checked={wheelZoom} onChange={(event) => setWheelZoom(event.target.checked)} />
-          Mouse wheel zoom
-        </label>
-        {mapMode === 'day' && (
-          <select value={day.id} onChange={(event) => onSelectDay(event.target.value)}>
-            {days.map((item) => (
-              <option value={item.id} key={item.id}>Day {item.day}: {item.title}</option>
-            ))}
-          </select>
-        )}
-        <div className="route-detail">
-          {mapMode === 'all' ? (
-            <>
-              <h3>All Trip Stops</h3>
-              <p>{allStops.length} places across {days.length} itinerary days.</p>
-              <div className="meta-grid">
-                <span>{days.filter((item) => item.distanceMiles && item.distanceMiles >= 100).length} longer drive days</span>
-                <span>{new Set(allStops.map((stop) => stop.base)).size} bases</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <h3>{day.title}</h3>
-              <p>{day.route || day.base}</p>
-              <div className="meta-grid">
-                <span>{day.driveTime || 'Local day'}</span>
-                <span>{day.distanceMiles ? `${day.distanceMiles} miles` : day.base}</span>
-              </div>
-            </>
-          )}
-          <ol className="stop-list">
-            {visibleStops.map((stop) => (
-              <li key={`${stop.day}-${stop.id}`}>
-                <strong>{stop.name}</strong>
-                <span>{mapMode === 'all' ? `Day ${stop.day}: ${stop.dayTitle}` : stop.notes || stop.kind}</span>
-              </li>
-            ))}
-          </ol>
-          {mapMode === 'day' && (
-            <a className="button primary full" href={googleMapsUrl(day)} target="_blank" rel="noreferrer">
-              <Route size={16} /> Open Directions
-            </a>
-          )}
-        </div>
-      </div>
-      <div className="map-canvas" id="trip-map" />
-    </section>
   );
 }
 
@@ -1806,7 +1692,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'map' ? 'map-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -1855,7 +1741,7 @@ export default function App() {
         </div>
       </aside>
       <section className="workspace">
-        {tab !== 'tasks' && <header className="topbar">
+        {tab !== 'tasks' && tab !== 'map' && <header className="topbar">
           <div>
             {tab === 'dashboard' ? (
               <p className="dashboard-greeting">{greeting}! <span aria-hidden="true">👋</span></p>
@@ -1891,7 +1777,7 @@ export default function App() {
             {tab === 'dashboard' && <Dashboard state={state} setTab={selectTab} />}
             {tab === 'itinerary' && <ItineraryView trip={state.trip} days={state.itinerary} budget={state.budget} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'research' && <ResearchConcierge history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
-            {tab === 'map' && <MapPanel days={state.itinerary} selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />}
+            {tab === 'map' && <CinematicMap days={state.itinerary} selectedDayId={selectedDayId} trip={state.trip} onSelectDay={setSelectedDayId} onAskResearch={askResearch} />}
             {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
             {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
