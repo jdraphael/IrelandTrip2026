@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { TasksResponse } from '../src/api';
@@ -146,6 +146,14 @@ describe('Ireland trip app', () => {
       ],
       summary: { target: 15000, planned: 15000, actual: 5350, remainingPlanned: 0, remainingActual: 9650, plannedPercent: 100, actualPercent: 36 }
     };
+    const source = {
+      id: 'budget-source-flight',
+      title: 'Aer Lingus family fare guide',
+      url: 'https://example.com/aer-lingus-family-fares',
+      sourceType: 'official',
+      checkedAt: '2026-05-19T00:00:00Z',
+      status: 'ok'
+    };
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
@@ -160,7 +168,37 @@ describe('Ireland trip app', () => {
       }
       if (url.endsWith('/api/budget')) return Promise.resolve(Response.json(budgetResponse));
       if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
-      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [source], summary: { total: 1, officialCount: 1, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research/drafts/draft-budget-flight/apply')) return Promise.resolve(Response.json({
+        id: 'draft-budget-flight',
+        kind: 'budget',
+        title: 'Tune flight target',
+        summary: 'Adjust the flight budget watch target after comparing midweek fares.',
+        createdAt: '2026-05-19T00:00:00Z',
+        status: 'applied',
+        sourceIds: ['budget-source-flight'],
+        payload: { item: { id: 'budget-flights', category: 'Flights', label: 'LEX to Dublin roundtrip for five', planned: 5750, actual: 4850, status: 'watching' } }
+      }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') return Promise.resolve(Response.json({
+        id: 'answer-budget-savings',
+        question: JSON.parse(init.body as string).question,
+        answer: 'Tuesday and Wednesday departure checks are the best savings lever for this budget.',
+        createdAt: '2026-05-19T00:00:00Z',
+        sources: [source],
+        warnings: ['Verify baggage and seat fees before treating the fare as final.'],
+        drafts: [
+          {
+            id: 'draft-budget-flight',
+            kind: 'budget',
+            title: 'Tune flight target',
+            summary: 'Adjust the flight budget watch target after comparing midweek fares.',
+            createdAt: '2026-05-19T00:00:00Z',
+            status: 'draft',
+            sourceIds: ['budget-source-flight'],
+            payload: { item: { id: 'budget-flights', category: 'Flights', label: 'LEX to Dublin roundtrip for five', planned: 5750, actual: 4850, status: 'watching' } }
+          }
+        ]
+      }));
       if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
       return Promise.reject(new Error(`Unhandled URL ${url}`));
     });
@@ -188,8 +226,51 @@ describe('Ireland trip app', () => {
       body: JSON.stringify([{ id: 'budget-lodging', planned: 3450 }])
     }));
 
-    await userEvent.click(screen.getByRole('button', { name: /Ask AI About Savings/i }));
-    expect(screen.getByText(/Savings analysis opened/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /See flight options/i }));
+
+    expect(await screen.findByText(/Tuesday and Wednesday departure checks/i)).toBeInTheDocument();
+    expect(screen.getByText(/Verify baggage and seat fees/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Aer Lingus family fare guide/i })[0]).toHaveAttribute('href', source.url);
+    expect(screen.getByText('Tune flight target')).toBeInTheDocument();
+
+    const researchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
+    const researchBody = JSON.parse((researchCall?.[1] as RequestInit).body as string);
+    expect(researchBody.context).toContain('Request surface: Budget AI Intelligence rail.');
+    expect(researchBody.context).toContain('"id":"budget-flights"');
+    expect(researchBody.context).toContain('1 USD = 0.85 EUR');
+
+    await userEvent.click(screen.getByRole('button', { name: /Apply Budget Draft/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/research/drafts/draft-budget-flight/apply', expect.objectContaining({ method: 'POST' })));
+    expect(await screen.findByText(/Applied to the saved budget/i)).toBeInTheDocument();
+  });
+
+  it('shows a recoverable Budget AI error when research fails', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({
+        items: [{ id: 'budget-lodging', category: 'Lodging', label: 'Hotels and farm stays', planned: 3200, actual: 0, status: 'researching' }],
+        summary: { target: 15000, planned: 3200, actual: 0, remainingPlanned: 11800, remainingActual: 15000, plannedPercent: 21, actualPercent: 0 }
+      }));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research') && init?.method === 'POST') return Promise.resolve(new Response(JSON.stringify({ error: 'Research temporarily unavailable' }), { status: 503 }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /^Budget$/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /Review options/i }));
+
+    expect(await screen.findByText(/Research temporarily unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Retry Budget AI/i })).toBeInTheDocument();
   });
 
   it('renders the cinematic checklist dashboard with hero, route timeline, filters, cards, and widgets', async () => {
