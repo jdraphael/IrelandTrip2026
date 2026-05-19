@@ -1779,7 +1779,7 @@ export default function App() {
             {tab === 'itinerary' && <ItineraryView trip={state.trip} days={state.itinerary} budget={state.budget} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'research' && <ResearchConcierge history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'map' && <CinematicMap days={state.itinerary} selectedDayId={selectedDayId} trip={state.trip} onSelectDay={setSelectedDayId} onAskResearch={askResearch} />}
-            {tab === 'budget' && <BudgetDashboard budget={state.budget} onSave={saveBudget} />}
+            {tab === 'budget' && <BudgetDashboard budget={state.budget} trip={state.trip} itinerary={state.itinerary} sources={activeSources} onSave={saveBudget} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
           </>

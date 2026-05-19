@@ -6,29 +6,51 @@ import {
   CalendarDays,
   Car,
   Castle,
+  CheckCircle2,
   Coins,
   Download,
   Euro,
+  ExternalLink,
   Gift,
   Hotel,
+  Loader2,
   PiggyBank,
   Plane,
   Plus,
+  RefreshCcw,
   Save,
   Sparkles,
   TrendingUp,
   Utensils,
-  WalletCards
+  WalletCards,
+  X
 } from 'lucide-react';
 import type { BudgetResponse } from '../api';
-import { formatExchangeRate } from '../currency/format';
+import { formatCacheAge, formatExchangeRate } from '../currency/format';
 import { useCurrencyRate } from '../currency/useCurrencyRate';
 import { dashboardAssets } from '../dashboardAssets';
-import type { BudgetItem } from '../types';
+import type { BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../types';
 
 const euroMoney = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
 type BudgetIcon = typeof Plane;
+
+interface BudgetDashboardProps {
+  budget?: BudgetResponse;
+  trip?: Trip;
+  itinerary?: DayPlan[];
+  sources?: SourceLink[];
+  onSave: (items: Partial<BudgetItem>[]) => Promise<void>;
+  onAsk: (question: string, deep: boolean, context?: string) => Promise<ResearchAnswer>;
+  onApplyDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+  onDismissDraft: (draft: ResearchDraft) => Promise<ResearchDraft | void>;
+}
+
+interface BudgetIntelligenceRequest {
+  id: string;
+  question: string;
+  deep?: boolean;
+}
 
 interface CategoryPresentation {
   title: string;
@@ -279,23 +301,183 @@ function DonutChart({ items, total }: { items: BudgetItem[]; total: number }) {
   );
 }
 
-function IntelligenceCard({ icon, title, children, action }: { icon: ReactNode; title: string; children: ReactNode; action?: string }) {
+function AnswerText({ text }: { text: string }) {
+  return (
+    <div className="budget-answer-text">
+      {text.replace(/\*\*/g, '').split(/\n{2,}/).map((block, index) => (
+        <p key={`${block.slice(0, 18)}-${index}`}>{block.replace(/^- /gm, '* ')}</p>
+      ))}
+    </div>
+  );
+}
+
+function BudgetSourceChips({ sources }: { sources: SourceLink[] }) {
+  if (sources.length === 0) return null;
+  return (
+    <div className="budget-source-row">
+      {sources.map((source) => (
+        <a className="budget-source-chip" href={source.url} target="_blank" rel="noreferrer" key={source.id}>
+          {source.title} <ExternalLink size={12} />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function budgetDraftTarget(draft: ResearchDraft) {
+  const payload = draft.payload as Record<string, unknown>;
+  const item = payload.item && typeof payload.item === 'object' ? payload.item as Record<string, unknown> : undefined;
+  if (draft.kind === 'budget') return typeof item?.label === 'string' ? `Budget - ${item.label}` : 'Budget';
+  return draft.kind;
+}
+
+function BudgetDraftReviewCard({
+  draft,
+  sources,
+  onApply,
+  onDismiss
+}: {
+  draft: ResearchDraft;
+  sources: SourceLink[];
+  onApply: (draft: ResearchDraft) => Promise<void>;
+  onDismiss: (draft: ResearchDraft) => Promise<void>;
+}) {
+  const [applying, setApplying] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+  const sourceLookup = new Map(sources.map((source) => [source.id, source]));
+  const draftSources = (draft.sourceIds || []).map((id) => sourceLookup.get(id)).filter(Boolean) as SourceLink[];
+  const apply = async () => {
+    setApplying(true);
+    try {
+      await onApply(draft);
+    } finally {
+      setApplying(false);
+    }
+  };
+  const dismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss(draft);
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  return (
+    <article className="budget-draft-card">
+      <div className="budget-draft-head">
+        <div>
+          <span>{draft.kind} draft</span>
+          <h3>{draft.title}</h3>
+        </div>
+        <strong>{draft.status}</strong>
+      </div>
+      <p className="budget-draft-target">{budgetDraftTarget(draft)}</p>
+      <p>{draft.summary || budgetDraftTarget(draft)}</p>
+      <BudgetSourceChips sources={draftSources} />
+      {draft.status === 'draft' ? (
+        <div className="budget-draft-actions">
+          <button type="button" onClick={apply} disabled={applying || dismissing}>
+            {applying ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />} Apply Budget Draft
+          </button>
+          <button type="button" onClick={dismiss} disabled={applying || dismissing}>
+            {dismissing ? <Loader2 className="spin" size={14} /> : <X size={14} />} Dismiss Draft
+          </button>
+        </div>
+      ) : draft.status === 'applied' ? (
+        <p className="budget-draft-note"><CheckCircle2 size={14} /> Applied to the saved budget.</p>
+      ) : (
+        <p className="budget-draft-note"><X size={14} /> Dismissed without changing the saved budget.</p>
+      )}
+    </article>
+  );
+}
+
+function IntelligenceCard({
+  icon,
+  title,
+  children,
+  action,
+  onAction,
+  disabled,
+  busy
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+  action?: string;
+  onAction?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+}) {
   return (
     <article className="budget-ai-card">
       <span>{icon}</span>
       <div>
         <h3>{title}</h3>
         <p>{children}</p>
-        {action && <button type="button">{action} <ArrowRight size={13} /></button>}
+        {action && (
+          <button type="button" onClick={onAction} disabled={disabled || busy}>
+            {busy ? <Loader2 className="spin" size={13} /> : null}
+            {action} {!busy && <ArrowRight size={13} />}
+          </button>
+        )}
       </div>
     </article>
   );
 }
 
-export function BudgetDashboard({ budget, onSave }: { budget?: BudgetResponse; onSave: (items: Partial<BudgetItem>[]) => Promise<void> }) {
+function mergeDraftStatus(answers: ResearchAnswer[], draft: ResearchDraft, fallbackStatus: ResearchDraft['status']) {
+  return answers.map((answer) => ({
+    ...answer,
+    drafts: answer.drafts.map((item) => (
+      item.id === draft.id ? { ...item, status: draft.status || fallbackStatus } : item
+    ))
+  }));
+}
+
+function budgetAgentContext(budget: BudgetResponse, itinerary: DayPlan[], trip?: Trip, currencySummary?: string) {
+  const tripDetail = trip
+    ? {
+        title: trip.title,
+        dates: `${trip.startDate || trip.month} to ${trip.endDate || trip.year}`,
+        travelers: trip.travelers,
+        origin: trip.origin,
+        destination: trip.destination,
+        budgetTarget: trip.budgetTarget,
+        routeSummary: trip.routeSummary,
+        priorities: trip.priorities
+      }
+    : undefined;
+  const itineraryDirectory = itinerary.map((day) => ({
+    id: day.id,
+    day: day.day,
+    title: day.title,
+    base: day.base,
+    route: day.route
+  }));
+  return [
+    'Request surface: Budget AI Intelligence rail.',
+    'Treat all saved budget amounts on this page as EUR.',
+    'Saved-data edits must be returned as reviewable budget drafts, never direct mutations.',
+    'Use existing budget ids when recommending updates. Only propose a new budget item when the user clearly needs a new line item.',
+    tripDetail ? `Trip JSON: ${JSON.stringify(tripDetail)}.` : 'Trip JSON: unavailable.',
+    `Budget summary JSON: ${JSON.stringify(budget.summary)}.`,
+    `Budget items JSON: ${JSON.stringify(budget.items.map((item) => ({ id: item.id, category: item.category, label: item.label, planned: item.planned, actual: item.actual, status: item.status })))}.`,
+    `Visible itinerary directory JSON: ${JSON.stringify(itineraryDirectory)}.`,
+    currencySummary ? `Currency context: ${currencySummary}.` : 'Currency context: live USD to EUR rate unavailable.'
+  ].join('\n');
+}
+
+export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], onSave, onAsk, onApplyDraft, onDismissDraft }: BudgetDashboardProps) {
   const [drafts, setDrafts] = useState<Record<string, Partial<BudgetItem>>>({});
   const [activeInsight, setActiveInsight] = useState('Route spending is balanced across the four longest destination stays.');
-  const { rate } = useCurrencyRate();
+  const [answers, setAnswers] = useState<ResearchAnswer[]>([]);
+  const [activeAnswerId, setActiveAnswerId] = useState<string>();
+  const [busyAction, setBusyAction] = useState<string>();
+  const [agentError, setAgentError] = useState('');
+  const [lastRequest, setLastRequest] = useState<BudgetIntelligenceRequest>();
+  const { status: currencyStatus, rate, previousRate, error: currencyError, isOffline, isRefreshing, retry: retryCurrency } = useCurrencyRate();
 
   const summary = budget?.summary;
   const items = budget?.items || [];
@@ -305,10 +487,83 @@ export function BudgetDashboard({ budget, onSave }: { budget?: BudgetResponse; o
   const dailyBudget = summary ? Math.round(summary.planned / 13) : 0;
   const perTraveler = Math.round(dailyBudget / 5);
   const cityAverage = Math.round((summary?.planned || 0) / Math.max(1, citySpend.length));
+  const currencySummary = rate ? formatExchangeRate(rate) : undefined;
+  const currencyDetail = rate
+    ? `${formatExchangeRate(rate)}${previousRate ? `, changed from ${previousRate.rate.toFixed(2)}` : ''}${isRefreshing ? ', refreshing' : ''}`
+    : currencyStatus === 'loading'
+      ? 'Loading live USD to EUR rate.'
+      : currencyError || 'Currency rate unavailable.';
 
   const categories = useMemo(() => items.map((item) => ({ item, presentation: displayFor(item) })), [items]);
+  const activeAnswer = answers.find((answer) => answer.id === activeAnswerId) || answers[0];
 
   if (!budget || !summary) return null;
+
+  const runBudgetIntelligence = async (request: BudgetIntelligenceRequest) => {
+    setLastRequest(request);
+    setBusyAction(request.id);
+    setAgentError('');
+    setActiveInsight(`${request.question} Budget AI is checking the saved plan and route context.`);
+    try {
+      const answer = await onAsk(request.question, Boolean(request.deep), budgetAgentContext(budget, itinerary, trip, currencySummary));
+      setAnswers((current) => [answer, ...current.filter((item) => item.id !== answer.id)]);
+      setActiveAnswerId(answer.id);
+      setActiveInsight('Budget AI returned a reviewable recommendation. Apply drafts only when the change looks right.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Budget AI is temporarily unavailable.';
+      setAgentError(message);
+      setActiveInsight('Budget AI could not complete that request. You can retry from the intelligence panel.');
+    } finally {
+      setBusyAction(undefined);
+    }
+  };
+
+  const applyBudgetDraft = async (draft: ResearchDraft) => {
+    const applied = await onApplyDraft(draft);
+    const nextDraft = { ...draft, status: applied?.status || 'applied' as const };
+    setAnswers((current) => mergeDraftStatus(current, nextDraft, 'applied'));
+    setActiveInsight(`${draft.title} applied. The saved budget has been refreshed.`);
+  };
+
+  const dismissBudgetDraft = async (draft: ResearchDraft) => {
+    const dismissed = await onDismissDraft(draft);
+    const nextDraft = { ...draft, status: dismissed?.status || 'dismissed' as const };
+    setAnswers((current) => mergeDraftStatus(current, nextDraft, 'dismissed'));
+    setActiveInsight(`${draft.title} dismissed. The saved budget was not changed.`);
+  };
+
+  const intelligenceRequests = {
+    savings: {
+      id: 'savings',
+      question: 'Find the highest-leverage flight, lodging, route, and timing savings opportunities for this Ireland family budget. If a budget line should change, return a reviewable budget draft using the existing item id.',
+      deep: false
+    },
+    risk: {
+      id: 'risk',
+      question: 'Analyze budget risks for lodging, flights, experiences, dining, and remaining flexibility. Prioritize risks that could affect a family of five during peak Ireland travel.',
+      deep: false
+    },
+    daily: {
+      id: 'daily',
+      question: `Review the daily spend forecast. Planned spend is ${euroMoney.format(summary.planned)}, actual spend is ${euroMoney.format(summary.actual)}, and the current forecast is ${euroMoney.format(dailyBudget)} per day for ${trip?.travelers || 5} travelers.`,
+      deep: false
+    },
+    experiences: {
+      id: 'experiences',
+      question: 'Rank the highest-value Ireland experiences for this family budget, balancing scenic return, family memory value, tickets, drive time, and weather flexibility.',
+      deep: false
+    },
+    optimize: {
+      id: 'optimize',
+      question: 'Optimize the full Ireland expedition budget. Identify savings, risks, tradeoffs, and any reviewable budget drafts that would improve the plan without reducing the premium family experience.',
+      deep: true
+    },
+    prices: {
+      id: 'prices',
+      question: 'Compare current price-watch priorities for flights, lodging, rental car, experiences, and dining. Focus on what should be checked first and what sources should be verified.',
+      deep: true
+    }
+  } satisfies Record<string, BudgetIntelligenceRequest>;
 
   const saveCategory = async (item: BudgetItem) => {
     const draft = drafts[item.id];
@@ -350,7 +605,7 @@ export function BudgetDashboard({ budget, onSave }: { budget?: BudgetResponse; o
 
       <div className="budget-mobile-summary" aria-label="Mobile budget summary">
         <strong>{euroMoney.format(remaining)}</strong>
-        <span>remaining · {euroMoney.format(dailyBudget)} / day · {budgetHealth}</span>
+        <span>remaining | {euroMoney.format(dailyBudget)} / day | {budgetHealth}</span>
       </div>
 
       <div className="budget-layout">
@@ -426,27 +681,103 @@ export function BudgetDashboard({ budget, onSave }: { budget?: BudgetResponse; o
         <aside className="budget-ai-column">
           <section className="budget-ai-shell">
             <h2><Sparkles size={18} /> AI Budget Intelligence</h2>
-            <IntelligenceCard icon={<Euro size={22} />} title="Currency Watch">
-              {rate ? formatExchangeRate(rate) : '1 USD = 0.85 EUR'} Favorable trend for USD planning.
+            <IntelligenceCard
+              icon={<Euro size={22} />}
+              title="Currency Watch"
+              action={currencyStatus === 'error' ? 'Retry rate' : undefined}
+              onAction={() => void retryCurrency()}
+              busy={isRefreshing}
+            >
+              {currencyDetail} {rate?.fetchedAt ? formatCacheAge(rate.fetchedAt) : ''} {isOffline ? 'Offline mode using cached rate.' : 'Live exchange watch for USD planning.'}
             </IntelligenceCard>
-            <IntelligenceCard icon={<PiggyBank size={22} />} title="AI Savings Suggestion" action="See flight options">
-              Flying Tuesday instead of Friday could save about €420.
+            <IntelligenceCard
+              icon={<PiggyBank size={22} />}
+              title="AI Savings Suggestion"
+              action="See flight options"
+              onAction={() => void runBudgetIntelligence(intelligenceRequests.savings)}
+              busy={busyAction === intelligenceRequests.savings.id}
+              disabled={Boolean(busyAction)}
+            >
+              Flying Tuesday instead of Friday could save about EUR 420.
             </IntelligenceCard>
-            <IntelligenceCard icon={<AlertTriangle size={22} />} title="Budget Alert" action="Review options">
+            <IntelligenceCard
+              icon={<AlertTriangle size={22} />}
+              title="Budget Alert"
+              action="Review options"
+              onAction={() => void runBudgetIntelligence(intelligenceRequests.risk)}
+              busy={busyAction === intelligenceRequests.risk.id}
+              disabled={Boolean(busyAction)}
+            >
               Lodging in Galway may exceed budget during peak season.
             </IntelligenceCard>
-            <IntelligenceCard icon={<CalendarDays size={22} />} title="Daily Spend Forecast" action="View daily breakdown">
+            <IntelligenceCard
+              icon={<CalendarDays size={22} />}
+              title="Daily Spend Forecast"
+              action="View daily breakdown"
+              onAction={() => void runBudgetIntelligence(intelligenceRequests.daily)}
+              busy={busyAction === intelligenceRequests.daily.id}
+              disabled={Boolean(busyAction)}
+            >
               You are projected to spend {euroMoney.format(dailyBudget)} per day.
             </IntelligenceCard>
-            <IntelligenceCard icon={<Castle size={22} />} title="Experience Prioritization" action="See top picks">
+            <IntelligenceCard
+              icon={<Castle size={22} />}
+              title="Experience Prioritization"
+              action="See top picks"
+              onAction={() => void runBudgetIntelligence(intelligenceRequests.experiences)}
+              busy={busyAction === intelligenceRequests.experiences.id}
+              disabled={Boolean(busyAction)}
+            >
               Highest value: Cliffs of Moher and Ring of Kerry drive.
             </IntelligenceCard>
+            {(activeAnswer || agentError || busyAction) && (
+              <section className="budget-ai-result" aria-label="Budget AI result">
+                <div className="budget-ai-result-head">
+                  <span><Sparkles size={14} /> Active intelligence</span>
+                  {busyAction && <strong><Loader2 className="spin" size={14} /> Researching</strong>}
+                </div>
+                {agentError && (
+                  <div className="budget-ai-error" role="alert">
+                    <AlertTriangle size={15} />
+                    <span>{agentError}</span>
+                    {lastRequest && (
+                      <button type="button" onClick={() => void runBudgetIntelligence(lastRequest)} disabled={Boolean(busyAction)}>
+                        <RefreshCcw size={13} /> Retry Budget AI
+                      </button>
+                    )}
+                  </div>
+                )}
+                {activeAnswer && !agentError && (
+                  <>
+                    <AnswerText text={activeAnswer.answer} />
+                    {activeAnswer.warnings.map((warning) => (
+                      <p className="budget-ai-warning" key={warning}><AlertTriangle size={14} /> {warning}</p>
+                    ))}
+                    <BudgetSourceChips sources={activeAnswer.sources} />
+                    {activeAnswer.drafts.map((draft) => (
+                      <BudgetDraftReviewCard
+                        key={draft.id}
+                        draft={draft}
+                        sources={[...sources, ...activeAnswer.sources]}
+                        onApply={applyBudgetDraft}
+                        onDismiss={dismissBudgetDraft}
+                      />
+                    ))}
+                  </>
+                )}
+              </section>
+            )}
             <div className="budget-active-insight" role="status">
               <Sparkles size={15} />
               <span>{activeInsight}</span>
             </div>
-            <button className="budget-optimize-button" type="button" onClick={() => setActiveInsight('Savings analysis opened. Flights, lodging, and route pacing are ready for review.')}>
-              <Sparkles size={16} /> Optimize Budget with AI
+            <button
+              className="budget-optimize-button"
+              type="button"
+              onClick={() => void runBudgetIntelligence(intelligenceRequests.optimize)}
+              disabled={Boolean(busyAction)}
+            >
+              {busyAction === intelligenceRequests.optimize.id ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />} Optimize Budget with AI
             </button>
           </section>
         </aside>
@@ -454,9 +785,9 @@ export function BudgetDashboard({ budget, onSave }: { budget?: BudgetResponse; o
 
       <nav className="budget-action-dock" aria-label="Budget actions">
         <button type="button" onClick={() => setActiveInsight('Add expense mode opened. Choose a category card, enter actual spend, then save changes.')}><Plus size={16} /> Add Expense</button>
-        <button type="button" onClick={() => setActiveInsight('Price comparison opened. Flight and lodging rates are the highest leverage checks this week.')}><Coins size={16} /> Compare Prices</button>
+        <button type="button" onClick={() => void runBudgetIntelligence(intelligenceRequests.prices)} disabled={Boolean(busyAction)}><Coins size={16} /> Compare Prices</button>
         <button type="button" onClick={() => setActiveInsight('Budget update mode opened. Edit planned or actual amounts directly inside each journey card.')}><Save size={16} /> Update Budget</button>
-        <button type="button" onClick={() => setActiveInsight('Savings analysis opened. Flights, lodging, and route pacing are ready for review.')}><Sparkles size={16} /> Ask AI About Savings</button>
+        <button type="button" onClick={() => void runBudgetIntelligence(intelligenceRequests.savings)} disabled={Boolean(busyAction)}><Sparkles size={16} /> Ask AI About Savings</button>
         <button type="button" onClick={() => setActiveInsight('Budget export prepared for family review.')}><Download size={16} /> Export Budget</button>
       </nav>
     </section>
