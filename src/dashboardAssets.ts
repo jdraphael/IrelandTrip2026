@@ -33,7 +33,14 @@ export const dashboardAssets = {
   mapScenicCoast: '/dashboard-assets/generated/map-scenic-coast.png',
   mapFogCliffs: '/dashboard-assets/generated/map-fog-cliffs.png',
   mapPubMusic: '/dashboard-assets/generated/map-pub-music.png',
-  mapFamilyHub: '/dashboard-assets/generated/map-family-hub.png'
+  mapFamilyHub: '/dashboard-assets/generated/map-family-hub.png',
+  budgetHero: '/dashboard-assets/budget/budget-hero-cliffs.png',
+  budgetFlights: '/dashboard-assets/budget/budget-flights-coast.png',
+  budgetLodging: '/dashboard-assets/budget/budget-lodging-cottage.png',
+  budgetCar: '/dashboard-assets/budget/budget-coastal-suv.png',
+  budgetDining: '/dashboard-assets/budget/budget-irish-dining.png',
+  budgetExperiences: '/dashboard-assets/budget/budget-cliffs-castles.png',
+  budgetSouvenirs: '/dashboard-assets/budget/budget-artisan-market.png'
 } as const;
 
 export const itineraryThumbnailAssets = [

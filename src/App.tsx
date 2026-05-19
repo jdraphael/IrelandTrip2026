@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Banknote, Bell, Bot, CalendarDays, Car, Castle, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, Cloud, CloudRain, CreditCard, ExternalLink, Eye, EyeOff, FileCheck2, Home, Hotel, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, Plane, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Smile, Sparkles, StickyNote, Sun, Users, X } from 'lucide-react';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
+import { BudgetDashboard } from './components/BudgetDashboard';
 import { ChecklistDashboard } from './components/ChecklistDashboard';
 import { CinematicMap } from './components/CinematicMap';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
@@ -1692,7 +1693,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'map' ? 'map-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'map' ? 'map-shell' : ''} ${tab === 'budget' ? 'budget-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -1778,7 +1779,7 @@ export default function App() {
             {tab === 'itinerary' && <ItineraryView trip={state.trip} days={state.itinerary} budget={state.budget} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'research' && <ResearchConcierge history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'map' && <CinematicMap days={state.itinerary} selectedDayId={selectedDayId} trip={state.trip} onSelectDay={setSelectedDayId} onAskResearch={askResearch} />}
-            {tab === 'budget' && <BudgetView budget={state.budget} onSave={saveBudget} />}
+            {tab === 'budget' && <BudgetDashboard budget={state.budget} onSave={saveBudget} />}
             {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
           </>

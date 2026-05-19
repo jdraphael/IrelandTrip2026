@@ -14,6 +14,13 @@ describe('dashboard asset registry', () => {
     expect(dashboardAssets.mapScenicCoast).toBe('/dashboard-assets/generated/map-scenic-coast.png');
     expect(dashboardAssets.mapFogCliffs).toBe('/dashboard-assets/generated/map-fog-cliffs.png');
     expect(dashboardAssets.mapPubMusic).toBe('/dashboard-assets/generated/map-pub-music.png');
+    expect(dashboardAssets.budgetHero).toBe('/dashboard-assets/budget/budget-hero-cliffs.png');
+    expect(dashboardAssets.budgetFlights).toBe('/dashboard-assets/budget/budget-flights-coast.png');
+    expect(dashboardAssets.budgetLodging).toBe('/dashboard-assets/budget/budget-lodging-cottage.png');
+    expect(dashboardAssets.budgetCar).toBe('/dashboard-assets/budget/budget-coastal-suv.png');
+    expect(dashboardAssets.budgetDining).toBe('/dashboard-assets/budget/budget-irish-dining.png');
+    expect(dashboardAssets.budgetExperiences).toBe('/dashboard-assets/budget/budget-cliffs-castles.png');
+    expect(dashboardAssets.budgetSouvenirs).toBe('/dashboard-assets/budget/budget-artisan-market.png');
   });
 
   it('provides all itinerary thumbnail assets in route order', () => {
