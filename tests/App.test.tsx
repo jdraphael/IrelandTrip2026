@@ -134,6 +134,64 @@ describe('Ireland trip app', () => {
     });
   }
 
+  it('renders the luxury Budget dashboard and saves category card edits', async () => {
+    const budgetResponse = {
+      items: [
+        { id: 'budget-flights', category: 'Flights', label: 'LEX to Dublin roundtrip for five', planned: 6000, actual: 4850, status: 'watching' },
+        { id: 'budget-lodging', category: 'Lodging', label: 'Hotels, aparthotels, farm stay, airport hotel', planned: 3200, actual: 0, status: 'researching' },
+        { id: 'budget-car', category: 'Transportation', label: 'Automatic SUV/7-seater with insurance', planned: 1500, actual: 0, status: 'researching' },
+        { id: 'budget-food', category: 'Food', label: 'Restaurants, groceries, snacks', planned: 2000, actual: 350, status: 'researching' },
+        { id: 'budget-activities', category: 'Activities', label: 'Zoo, castles, wildlife, cliffs, farm experiences', planned: 1600, actual: 0, status: 'researching' },
+        { id: 'budget-buffer', category: 'Buffer', label: 'Souvenirs and surprises', planned: 700, actual: 150, status: 'researching' }
+      ],
+      summary: { target: 15000, planned: 15000, actual: 5350, remainingPlanned: 0, remainingActual: 9650, plannedPercent: 100, actualPercent: 36 }
+    };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith('https://api.frankfurter.dev/v2/rate/USD/EUR')) return Promise.resolve(Response.json({ date: '2026-05-14', base: 'USD', quote: 'EUR', rate: 0.85378 }));
+      if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
+      if (url.endsWith('/api/trip')) return Promise.resolve(Response.json(tripResponse));
+      if (url.endsWith('/api/family-members')) return Promise.resolve(Response.json(familyMembersResponse));
+      if (url.endsWith('/api/itinerary')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/budget') && init?.method === 'PATCH') {
+        return Promise.resolve(Response.json({
+          ...budgetResponse,
+          items: budgetResponse.items.map((item) => item.id === 'budget-lodging' ? { ...item, planned: 3450 } : item)
+        }));
+      }
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json(budgetResponse));
+      if (url.endsWith('/api/tasks')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, done: 0, open: 0, blocked: 0 } }));
+      if (url.endsWith('/api/sources')) return Promise.resolve(Response.json({ items: [], summary: { total: 0, officialCount: 0, warningCount: 0, warnings: [] } }));
+      if (url.endsWith('/api/research')) return Promise.resolve(Response.json([]));
+      return Promise.reject(new Error(`Unhandled URL ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Ireland Family Trip');
+    await userEvent.click(screen.getByRole('button', { name: /^Budget$/i }));
+
+    expect(await screen.findByRole('heading', { name: /Ireland Expedition Budget/i })).toBeInTheDocument();
+    expect(screen.getAllByText('€15,000').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('€5,350')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Flights & Transportation/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /AI Budget Intelligence/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Target/i)).not.toBeInTheDocument();
+
+    const lodgingCard = screen.getByLabelText(/Budget category Lodging & Stays/i);
+    const plannedInput = within(lodgingCard).getByLabelText(/Planned amount/i);
+    await userEvent.clear(plannedInput);
+    await userEvent.type(plannedInput, '3450');
+    await userEvent.click(within(lodgingCard).getByRole('button', { name: /Save Lodging & Stays/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/budget', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify([{ id: 'budget-lodging', planned: 3450 }])
+    }));
+
+    await userEvent.click(screen.getByRole('button', { name: /Ask AI About Savings/i }));
+    expect(screen.getByText(/Savings analysis opened/i)).toBeInTheDocument();
+  });
+
   it('renders the cinematic checklist dashboard with hero, route timeline, filters, cards, and widgets', async () => {
     vi.stubGlobal('fetch', stubChecklistApp());
 
