@@ -187,10 +187,10 @@ function MetricCard({ icon, label, value, note, className = '' }: { icon: ReactN
   return (
     <article className={`budget-metric-card ${className}`}>
       <span className="budget-metric-icon">{icon}</span>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{note}</small>
+      <div className="budget-metric-copy">
+        <span className="budget-metric-label">{label}</span>
+        <strong className="budget-metric-value">{value}</strong>
+        <small className="budget-metric-note">{note}</small>
       </div>
     </article>
   );
@@ -588,16 +588,16 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
           <span /><span /><span /><span />
         </div>
         <div className="budget-metric-grid">
-          <MetricCard icon={<Coins size={22} />} label="Total Budget" value={euroMoney.format(summary.target)} note="100% of travel plan" />
-          <MetricCard icon={<TrendingUp size={22} />} label="Planned Spend" value={euroMoney.format(summary.planned)} note={`${summary.plannedPercent}% of total budget`} />
-          <MetricCard icon={<WalletCards size={22} />} label="Actual Spend" value={euroMoney.format(summary.actual)} note={`${actualPercent}% of total budget`} />
-          <MetricCard icon={<PiggyBank size={22} />} label="Remaining" value={euroMoney.format(remaining)} note={`${pct(remaining, summary.target)}% of budget left`} />
+          <MetricCard icon={<Coins size={22} />} label="Total Budget" value={euroMoney.format(summary.target)} note="Travel plan" />
+          <MetricCard icon={<TrendingUp size={22} />} label="Planned Spend" value={euroMoney.format(summary.planned)} note={`${summary.plannedPercent}% allocated`} />
+          <MetricCard icon={<WalletCards size={22} />} label="Actual Spend" value={euroMoney.format(summary.actual)} note={`${actualPercent}% spent`} />
+          <MetricCard icon={<PiggyBank size={22} />} label="Remaining" value={euroMoney.format(remaining)} note={`${pct(remaining, summary.target)}% left`} />
           <article className="budget-metric-card budget-health-card">
-            <div className="budget-health-ring" style={{ '--health': 100 - actualPercent } as CSSProperties}><span /></div>
-            <div>
-              <span>Budget Health</span>
-              <strong>{budgetHealth}</strong>
-              <small>You are on track for an amazing trip.</small>
+            <div className="budget-health-ring" style={{ '--health': 100 - actualPercent } as CSSProperties} aria-hidden="true"><span /></div>
+            <div className="budget-metric-copy">
+              <span className="budget-metric-label">Budget Health</span>
+              <strong className="budget-metric-value">{budgetHealth}</strong>
+              <small className="budget-metric-note">On track</small>
             </div>
           </article>
         </div>
