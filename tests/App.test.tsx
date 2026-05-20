@@ -765,15 +765,28 @@ describe('Ireland trip app', () => {
     render(<App />);
     await screen.findByText('Ireland Family Trip');
     const shell = screen.getByTestId('app-shell');
+    const primaryNav = screen.getByLabelText('Primary navigation');
+    const budgetButton = within(primaryNav).getByRole('button', { name: /^Budget$/i });
+    const conversionButton = await within(primaryNav).findByRole('button', { name: /Travel conversion tool/i });
 
     expect(shell).not.toHaveClass('nav-collapsed');
+    expect(screen.getByText('The Raphael Family')).toBeInTheDocument();
+    expect(screen.getByText('Need local help?')).toBeInTheDocument();
+    expect(budgetButton).toHaveAttribute('data-tooltip', 'Budget');
+    expect(budgetButton).toHaveAttribute('title', 'Budget');
+    expect(conversionButton).toHaveAttribute('data-tooltip', 'Travel conversion tool');
+    expect(conversionButton).toHaveAttribute('title', 'Travel conversion tool');
     await userEvent.click(screen.getByRole('button', { name: /Collapse navigation/i }));
 
     expect(shell).toHaveClass('nav-collapsed');
     expect(screen.getAllByRole('button', { name: /^Itinerary$/i })[0]).toBeInTheDocument();
+    expect(screen.queryByText('The Raphael Family')).not.toBeInTheDocument();
+    expect(screen.queryByText('Need local help?')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Expand navigation/i }));
     expect(shell).not.toHaveClass('nav-collapsed');
+    expect(screen.getByText('The Raphael Family')).toBeInTheDocument();
+    expect(screen.getByText('Need local help?')).toBeInTheDocument();
   });
 
   it('moves the travel conversion tool into the left navigation as a pop-out module', async () => {
