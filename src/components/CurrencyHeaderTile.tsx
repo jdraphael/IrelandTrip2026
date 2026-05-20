@@ -88,6 +88,8 @@ export function CurrencyHeaderTile({ variant = 'tile' }: { variant?: 'tile' | 'n
       aria-label="Travel conversion tool"
       aria-haspopup="dialog"
       aria-expanded={modalOpen}
+      title="Travel conversion tool"
+      data-tooltip="Travel conversion tool"
       onClick={() => {
         setModalOpen(true);
       }}

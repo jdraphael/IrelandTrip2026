@@ -8337,3 +8337,97 @@ textarea {
     backdrop-filter: blur(16px);
   }
 }
+
+@media (min-width: 1041px) {
+  .app-shell.nav-collapsed,
+  .dashboard-shell.nav-collapsed,
+  .itinerary-shell.nav-collapsed,
+  .research-shell.nav-collapsed,
+  .map-shell.nav-collapsed,
+  .budget-shell.nav-collapsed,
+  .checklist-shell.nav-collapsed {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .nav-collapsed .sidebar {
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
+    overflow: visible;
+    padding-inline: 14px;
+  }
+
+  .nav-collapsed .brand,
+  .nav-collapsed .brand-copy,
+  .nav-collapsed .desktop-nav .nav-label,
+  .nav-collapsed .desktop-nav .currency-refreshing,
+  .nav-collapsed .sidebar-family-card,
+  .nav-collapsed .sidebar-help-card,
+  .nav-collapsed .sidebar::after {
+    display: none;
+  }
+
+  .nav-collapsed .brand-row,
+  .nav-collapsed .desktop-nav {
+    justify-items: center;
+  }
+
+  .nav-collapsed .desktop-nav button {
+    position: relative;
+    justify-content: center;
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    padding-inline: 0;
+    overflow: visible;
+  }
+
+  .nav-collapsed .desktop-nav button[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    z-index: 80;
+    width: max-content;
+    max-width: 220px;
+    transform: translateY(-50%) translateX(-4px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    padding: 7px 9px;
+    color: #fffdf6;
+    background: rgba(4, 47, 34, 0.96);
+    box-shadow: 0 14px 32px rgba(6, 33, 25, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    font-size: .78rem;
+    font-weight: 800;
+    transition: opacity .14s ease, transform .14s ease;
+  }
+
+  .nav-collapsed .desktop-nav button[data-tooltip]::before {
+    content: "";
+    position: absolute;
+    left: calc(100% + 6px);
+    top: 50%;
+    z-index: 81;
+    width: 8px;
+    height: 8px;
+    transform: translateY(-50%) rotate(45deg);
+    background: rgba(4, 47, 34, 0.96);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .14s ease;
+  }
+
+  .nav-collapsed .desktop-nav button[data-tooltip]:hover::after,
+  .nav-collapsed .desktop-nav button[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+
+  .nav-collapsed .desktop-nav button[data-tooltip]:hover::before,
+  .nav-collapsed .desktop-nav button[data-tooltip]:focus-visible::before {
+    opacity: 1;
+  }
+}

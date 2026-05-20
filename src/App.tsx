@@ -102,7 +102,7 @@ function NavigationItems({ activeTab, onSelect }: { activeTab: Tab; onSelect: (t
       {tabs.map((item) => {
         const Icon = item.icon;
         return (
-          <button className={activeTab === item.id ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)} aria-label={item.label}>
+          <button className={activeTab === item.id ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)} aria-label={item.label} title={item.label} data-tooltip={item.label}>
             <Icon size={18} />
             <span className="nav-label">{item.label}</span>
           </button>
@@ -1720,26 +1720,30 @@ export default function App() {
           <NavigationItems activeTab={tab} onSelect={selectTab} />
           <CurrencyHeaderTile variant="nav" />
         </div>
-        <div className="sidebar-family-card">
-          <div className="family-avatar-stack" aria-hidden="true">
-            <span>J</span>
-            <span>K</span>
-            <span>3</span>
+        {!navCollapsed && (
+          <div className="sidebar-family-card">
+            <div className="family-avatar-stack" aria-hidden="true">
+              <span>J</span>
+              <span>K</span>
+              <span>3</span>
+            </div>
+            <div>
+              <strong>The Raphael Family</strong>
+              <span>Family Pass: 7D43K2</span>
+            </div>
+            <ChevronDown size={15} />
           </div>
-          <div>
-            <strong>The Raphael Family</strong>
-            <span>Family Pass: 7D43K2</span>
+        )}
+        {!navCollapsed && (
+          <div className="sidebar-help-card">
+            <img src={dashboardAssets.researchAgent} alt="" aria-hidden="true" />
+            <strong>Need local help?</strong>
+            <span>Your Ireland Agent is just a message away.</span>
+            <button className="button ghost compact" type="button" onClick={() => setTab('research')}>
+              Message Agent <MessageCircle size={14} />
+            </button>
           </div>
-          <ChevronDown size={15} />
-        </div>
-        <div className="sidebar-help-card">
-          <img src={dashboardAssets.researchAgent} alt="" aria-hidden="true" />
-          <strong>Need local help?</strong>
-          <span>Your Ireland Agent is just a message away.</span>
-          <button className="button ghost compact" type="button" onClick={() => setTab('research')}>
-            Message Agent <MessageCircle size={14} />
-          </button>
-        </div>
+        )}
       </aside>
       <section className="workspace">
         {tab !== 'tasks' && tab !== 'map' && <header className="topbar">
