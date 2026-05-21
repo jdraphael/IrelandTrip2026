@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently -n api,web -c green,blue \"tsx watch server/index.ts\" \"vite --host 127.0.0.1\"",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run",
+    "test": "vitest run --fileParallelism=false",
     "test:watch": "vitest",
     "start": "tsx server/index.ts"
   },
@@ -28,6 +28,7 @@
     "openai": "^6.37.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "recharts": "^3.8.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.11",
     "zod": "^4.4.3"
@@ -44,7 +45,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/supertest": "^7.2.0",
-    "@vercel/node": "^5.7.17",
     "concurrently": "^9.2.1",
     "jsdom": "^29.1.1",
     "playwright": "^1.59.1",

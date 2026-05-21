@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Banknote, Bell, Bot, CalendarDays, Car, Castle, CheckCircle2, ChevronDown, ChevronsLeft, ChevronsRight, Cloud, CloudRain, CreditCard, ExternalLink, Eye, EyeOff, FileCheck2, Home, Hotel, Loader2, MapPinned, Menu, MessageCircle, MoreHorizontal, Plane, PiggyBank, RefreshCw, Route, Save, Search, ShieldCheck, Smile, Sparkles, StickyNote, Sun, Users, X } from 'lucide-react';
 import { api, type BudgetResponse, type SourcesResponse, type TasksResponse } from './api';
-import { BudgetDashboard } from './components/BudgetDashboard';
-import { ChecklistDashboard } from './components/ChecklistDashboard';
-import { CinematicMap } from './components/CinematicMap';
 import { CurrencyHeaderTile } from './components/CurrencyHeaderTile';
 import { TravelerMenu } from './components/TravelerMenu';
 import { dashboardAssets, itineraryAssets, itineraryThumbnailAssets } from './dashboardAssets';
@@ -12,6 +9,20 @@ import { getTimeOfDayGreeting } from './lib/greeting';
 import type { BookingTask, BudgetItem, DayPlan, FamilyMember, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
+
+const loadBudgetDashboard = () => import('./components/BudgetDashboard').then((module) => ({ default: module.BudgetDashboard }));
+const loadChecklistDashboard = () => import('./components/ChecklistDashboard').then((module) => ({ default: module.ChecklistDashboard }));
+const loadCinematicMap = () => import('./components/CinematicMap').then((module) => ({ default: module.CinematicMap }));
+
+const BudgetDashboard = lazy(loadBudgetDashboard);
+const ChecklistDashboard = lazy(loadChecklistDashboard);
+const CinematicMap = lazy(loadCinematicMap);
+
+function preloadTab(tab: Tab) {
+  if (tab === 'budget') void loadBudgetDashboard();
+  if (tab === 'tasks') void loadChecklistDashboard();
+  if (tab === 'map') void loadCinematicMap();
+}
 
 interface AppState {
   trip?: Trip;
@@ -88,6 +99,15 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
   return <span className={`pill pill-${tone}`}>{children}</span>;
 }
 
+function WorkspaceLoading({ label }: { label: string }) {
+  return (
+    <section className="workspace-loading" aria-live="polite" aria-label={`Loading ${label}`}>
+      <Loader2 className="spin" size={22} />
+      <span>Loading {label}</span>
+    </section>
+  );
+}
+
 function BrandMark() {
   return (
     <span className="brand-mark">
@@ -102,7 +122,7 @@ function NavigationItems({ activeTab, onSelect }: { activeTab: Tab; onSelect: (t
       {tabs.map((item) => {
         const Icon = item.icon;
         return (
-          <button className={activeTab === item.id ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)} aria-label={item.label} title={item.label} data-tooltip={item.label}>
+          <button className={activeTab === item.id ? 'active' : ''} key={item.id} onPointerEnter={() => preloadTab(item.id)} onFocus={() => preloadTab(item.id)} onClick={() => onSelect(item.id)} aria-label={item.label} title={item.label} data-tooltip={item.label}>
             <Icon size={18} />
             <span className="nav-label">{item.label}</span>
           </button>
@@ -125,7 +145,7 @@ function MobileBottomNav({ activeTab, onSelect, onMore }: { activeTab: Tab; onSe
       {items.map((item) => {
         const Icon = item.icon;
         return (
-          <button type="button" className={activeTab === item.id ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)} aria-label={item.label}>
+          <button type="button" className={activeTab === item.id ? 'active' : ''} key={item.id} onPointerEnter={() => preloadTab(item.id)} onFocus={() => preloadTab(item.id)} onClick={() => onSelect(item.id)} aria-label={item.label}>
             <Icon size={19} />
             <span>{item.label}</span>
           </button>
@@ -1782,9 +1802,21 @@ export default function App() {
             {tab === 'dashboard' && <Dashboard state={state} setTab={selectTab} />}
             {tab === 'itinerary' && <ItineraryView trip={state.trip} days={state.itinerary} budget={state.budget} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveItinerary} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
             {tab === 'research' && <ResearchConcierge history={state.research} currentDayCount={state.itinerary.length} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
-            {tab === 'map' && <CinematicMap days={state.itinerary} selectedDayId={selectedDayId} trip={state.trip} onSelectDay={setSelectedDayId} onAskResearch={askResearch} />}
-            {tab === 'budget' && <BudgetDashboard budget={state.budget} trip={state.trip} itinerary={state.itinerary} sources={activeSources} onSave={saveBudget} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
-            {tab === 'tasks' && <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />}
+            {tab === 'map' && (
+              <Suspense fallback={<WorkspaceLoading label="map" />}>
+                <CinematicMap days={state.itinerary} selectedDayId={selectedDayId} trip={state.trip} onSelectDay={setSelectedDayId} onAskResearch={askResearch} />
+              </Suspense>
+            )}
+            {tab === 'budget' && (
+              <Suspense fallback={<WorkspaceLoading label="budget intelligence" />}>
+                <BudgetDashboard budget={state.budget} trip={state.trip} itinerary={state.itinerary} sources={activeSources} onSave={saveBudget} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />
+              </Suspense>
+            )}
+            {tab === 'tasks' && (
+              <Suspense fallback={<WorkspaceLoading label="checklist" />}>
+                <ChecklistDashboard trip={state.trip} itinerary={state.itinerary} tasks={state.tasks} familyMembers={state.familyMembers} sources={activeSources} currentDayCount={state.itinerary.length} onSave={saveTasks} onSaveFamilyMembers={saveFamilyMembers} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />
+              </Suspense>
+            )}
             {tab === 'sources' && <SourcesView sources={state.sources} onCheck={checkSource} />}
           </>
         )}
