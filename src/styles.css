@@ -271,6 +271,36 @@
   backdrop-filter: blur(16px);
 }
 
+.ai-context-loading {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 620px;
+  border: 1px solid rgba(217, 185, 91, 0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #fdfdfc;
+  background: rgba(5, 45, 31, 0.7);
+  box-shadow: 0 14px 32px rgba(7, 50, 36, 0.22);
+}
+
+.ai-context-loading div {
+  display: grid;
+  gap: 2px;
+}
+
+.ai-context-loading strong,
+.ai-context-loading span {
+  display: block;
+}
+
+.ai-context-loading span {
+  color: rgba(253, 253, 252, 0.76);
+  font-size: .84rem;
+  line-height: 1.35;
+}
+
 .research-mode-bar > span {
   padding: 0 12px;
   font-size: .82rem;
@@ -665,6 +695,26 @@
   font-weight: 820;
 }
 
+.research-context-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.research-context-strip span,
+.context-source-meta span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(11, 93, 59, 0.14);
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #0b5d3b;
+  background: rgba(11, 93, 59, 0.06);
+  font-size: .76rem;
+  font-weight: 800;
+}
+
 .research-session-actions {
   display: grid;
   gap: 8px;
@@ -700,6 +750,34 @@
 .research-session-expanded h4 {
   margin: 0 0 10px;
   color: #10241d;
+}
+
+.sources-used-panel {
+  margin-bottom: 16px;
+  border: 1px solid rgba(36, 50, 61, 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(247, 244, 238, 0.62);
+}
+
+.sources-used-panel summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #10241d;
+  font-weight: 900;
+}
+
+.sources-used-panel .source-row {
+  margin-top: 10px;
+}
+
+.context-source-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .session-map-preview {

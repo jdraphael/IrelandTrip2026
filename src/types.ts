@@ -222,4 +222,12 @@ export interface ResearchAnswer {
   sources: SourceLink[];
   drafts: ResearchDraft[];
   warnings: string[];
+  contextUsed?: {
+    tripId: string;
+    badges: string[];
+    activeWindow: string;
+    intents: string[];
+    retrievedDocumentIds: string[];
+    missingData: string[];
+  };
 }

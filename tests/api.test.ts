@@ -455,6 +455,38 @@ describe('trip agent API', () => {
     expect(prompt).toContain('Mastercard');
   });
 
+  it('injects structured trip context before researching lodging questions', async () => {
+    openAiMock.responsesCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        answer: 'Your family includes 2 adults and 3 children ages 12, 10, and 9, so apartment-style lodging is safest.',
+        warnings: [],
+        drafts: []
+      }),
+      output: []
+    });
+    const db = createTestDatabase();
+    await db.saveFamilyMembers((await db.getFamilyMembers()).map((member) => {
+      if (member.id === 'lyla') return { ...member, age: 12 };
+      if (member.id === 'grace') return { ...member, age: 10 };
+      if (member.id === 'everly') return { ...member, age: 9 };
+      return member;
+    }));
+    const app = createApp({ db, openAiApiKey: 'test-key' });
+
+    const response = await request(app)
+      .post('/api/research')
+      .send({ question: 'Do our Dublin and Galway lodging plans work for a family of five?' })
+      .expect(200);
+
+    const prompt = openAiMock.responsesCreate.mock.calls[0][0].input as string;
+    expect(prompt).toContain('Current family');
+    expect(prompt).toContain('Children ages: 12, 10, 9');
+    expect(prompt).toContain('Known lodging');
+    expect(prompt).toContain('Staycity Aparthotels Dublin Castle');
+    expect(prompt).toContain('The Connacht Hotel');
+    expect(response.body.contextUsed.badges).toEqual(expect.arrayContaining(['Using family profile data', 'Using itinerary + lodging context']));
+  });
+
   it('extracts a JSON draft object when model output includes leading prose', async () => {
     openAiMock.responsesCreate.mockResolvedValue({
       output_text: `Here is the draft:\n${JSON.stringify({

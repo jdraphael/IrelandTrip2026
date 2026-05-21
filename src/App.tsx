@@ -1220,6 +1220,7 @@ function ResearchSessionCard({
   const drafts = answer.drafts || [];
   const answerText = answer.answer || 'Ireland Concierge AI is preparing this research session.';
   const sourceCount = sources.length;
+  const contextBadges = answer.contextUsed?.badges?.length ? answer.contextUsed.badges : ['Ireland route context', 'Family friendly'];
 
   return (
     <details className="research-session-card" open={index === 0}>
@@ -1230,8 +1231,9 @@ function ResearchSessionCard({
           <h3>{answer.question}</h3>
           <p>{answerText.split('\n')[0]}</p>
           <div className="research-session-pills">
-            <span><MapPinned size={14} /> Ireland route context</span>
-            <span><Smile size={14} /> Family friendly</span>
+            {contextBadges.slice(0, 3).map((badge) => (
+              <span key={badge}>{/family/i.test(badge) ? <Smile size={14} /> : <MapPinned size={14} />} {badge}</span>
+            ))}
             <span><ShieldCheck size={14} /> {sourceCount || 'Official-first'} sources</span>
           </div>
         </div>
@@ -1250,19 +1252,34 @@ function ResearchSessionCard({
           <h4>AI Summary</h4>
           <AnswerText text={answerText} />
           {warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+          {answer.contextUsed && (
+            <div className="research-context-strip" aria-label="Trip context used">
+              {answer.contextUsed.badges.map((badge) => <span key={badge}>{badge}</span>)}
+            </div>
+          )}
         </div>
         <div className="session-map-preview">
           <img src={dashboardAssets.researchMap} alt="" aria-hidden="true" />
           <button type="button">View Map</button>
         </div>
         <div>
-          <h4>Sources ({sourceCount})</h4>
-          <div className="source-row">
-            {sources.length === 0 && <span className="source-chip">Source review pending</span>}
-            {sources.map((source) => (
-              <a className="source-chip" key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.title}<ExternalLink size={13} /></a>
-            ))}
-          </div>
+          <details className="sources-used-panel">
+            <summary><ShieldCheck size={15} /> Sources used ({sourceCount})</summary>
+            <div className="source-row">
+              {sources.length === 0 && <span className="source-chip">Source review pending</span>}
+              {sources.map((source) => (
+                <a className="source-chip" key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.title}<ExternalLink size={13} /></a>
+              ))}
+            </div>
+            {answer.contextUsed && (
+              <div className="context-source-meta">
+                <span>Trip ID: {answer.contextUsed.tripId}</span>
+                <span>{answer.contextUsed.activeWindow}</span>
+                {answer.contextUsed.retrievedDocumentIds.length > 0 && <span>{answer.contextUsed.retrievedDocumentIds.length} saved trip notes retrieved</span>}
+                {answer.contextUsed.missingData.map((item) => <span key={item}>{item}</span>)}
+              </div>
+            )}
+          </details>
           <h4>Save Research Directly Into Adventure</h4>
           <div className="research-save-grid">
             <button type="button"><Save size={15} /> Save to Itinerary</button>
@@ -1328,6 +1345,15 @@ function ResearchConcierge({ history, currentDayCount, onAsk, onApplyDraft, onDi
                 ))}
               </div>
             </form>
+            {busy && (
+              <div className="ai-context-loading" role="status">
+                <Loader2 className="spin" size={18} />
+                <div>
+                  <strong>AI is reviewing your itinerary...</strong>
+                  <span>Using family profile data, lodging context, route notes, and saved research.</span>
+                </div>
+              </div>
+            )}
             <div className="research-mode-bar" role="group" aria-label="AI Research Modes">
               <span>AI Research Mode</span>
               {researchModes.map((item) => {
