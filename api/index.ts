@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { Request, Response } from 'express';
 import { createApp } from '../server/app.js';
 import { createPostgresDatabase } from '../server/postgresDb.js';
 import type { TripDatabase } from '../server/tripDatabase.js';
@@ -42,7 +42,7 @@ const app = createApp({
   authRequired: true
 });
 
-function rewriteApiPath(request: VercelRequest) {
+function rewriteApiPath(request: Request) {
   const path = request.query.path;
   const rawPath = Array.isArray(path) ? path.join('/') : path;
   if (!rawPath) return;
@@ -53,7 +53,7 @@ function rewriteApiPath(request: VercelRequest) {
   request.url = `${url.pathname}${url.search}`;
 }
 
-export default function handler(request: VercelRequest, response: VercelResponse) {
+export default function handler(request: Request, response: Response) {
   rewriteApiPath(request);
   return app(request, response);
 }

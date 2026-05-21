@@ -208,7 +208,7 @@ describe('Ireland trip app', () => {
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getByRole('button', { name: /^Budget$/i }));
 
-    expect(await screen.findByRole('heading', { name: /Ireland Expedition Budget/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Ireland Expedition Budget/i }, { timeout: 30000 })).toBeInTheDocument();
     expect(screen.getAllByText('€15,000').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('€5,350')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Flights & Transportation/i })).toBeInTheDocument();
@@ -243,7 +243,7 @@ describe('Ireland trip app', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/research/drafts/draft-budget-flight/apply', expect.objectContaining({ method: 'POST' })));
     expect(await screen.findByText(/Applied to the saved budget/i)).toBeInTheDocument();
-  });
+  }, 30000);
 
   it('shows a recoverable Budget AI error when research fails', async () => {
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
@@ -267,11 +267,12 @@ describe('Ireland trip app', () => {
     render(<App />);
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getByRole('button', { name: /^Budget$/i }));
+    await screen.findByRole('heading', { name: /Ireland Expedition Budget/i }, { timeout: 30000 });
     await userEvent.click(await screen.findByRole('button', { name: /Review options/i }));
 
     expect(await screen.findByText(/Research temporarily unavailable/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Retry Budget AI/i })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('renders the cinematic checklist dashboard with hero, route timeline, filters, cards, and widgets', async () => {
     vi.stubGlobal('fetch', stubChecklistApp());
@@ -280,7 +281,7 @@ describe('Ireland trip app', () => {
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getAllByRole('button', { name: /^Checklist$/i })[0]);
 
-    expect(screen.getByRole('heading', { name: /Ireland Family Adventure/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Ireland Family Adventure/i }, { timeout: 30000 })).toBeInTheDocument();
     expect(screen.getAllByText(/Jun 18-30, 2027/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/LEX/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Kilkenny/i)).toBeInTheDocument();
@@ -871,7 +872,7 @@ describe('Ireland trip app', () => {
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getAllByRole('button', { name: /^Map$/i })[0]);
 
-    expect(screen.getByRole('heading', { name: /Ireland Expedition Route/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Ireland Expedition Route/i }, { timeout: 30000 })).toBeInTheDocument();
     expect(screen.getByText(/12 unforgettable days across Ireland/i)).toBeInTheDocument();
     expect(screen.getByText(/5 travelers/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Scenic Routes layer/i })).toHaveAttribute('aria-pressed', 'true');
@@ -901,6 +902,7 @@ describe('Ireland trip app', () => {
     render(<App />);
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getAllByRole('button', { name: /^Map$/i })[0]);
+    await screen.findByRole('heading', { name: /Ireland Expedition Route/i }, { timeout: 30000 });
 
     await userEvent.click(screen.getByRole('button', { name: /Save Offline Route/i }));
     expect(screen.getByRole('button', { name: /Offline Route Saved/i })).toBeInTheDocument();

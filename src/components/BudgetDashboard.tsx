@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowRight,
@@ -25,11 +26,24 @@ import {
   WalletCards,
   X
 } from 'lucide-react';
+import { Cell, Pie, PieChart } from 'recharts';
 import type { BudgetResponse } from '../api';
 import { formatCacheAge, formatExchangeRate } from '../currency/format';
 import { useCurrencyRate } from '../currency/useCurrencyRate';
 import { dashboardAssets } from '../dashboardAssets';
 import type { BudgetItem, DayPlan, ResearchAnswer, ResearchDraft, SourceLink, Trip } from '../types';
+import {
+  budgetCategoryKey,
+  deriveBudgetIntelligence,
+  type BudgetCategoryKey,
+  type BudgetFilterState,
+  type BudgetIntelligence,
+  type CategoryMetric,
+  type CityMetric,
+  type ScenarioDelta,
+  type TimelineMode,
+  type TimelinePoint
+} from '../lib/budgetIntelligence';
 
 const euroMoney = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
@@ -148,14 +162,7 @@ const citySpend = [
 ];
 
 function budgetKey(item: BudgetItem) {
-  const text = `${item.id} ${item.category} ${item.label}`.toLowerCase();
-  if (/flight|airfare/.test(text)) return 'flights';
-  if (/activity|activities|attraction|castle|cliff|zoo|wildlife|experience/.test(text)) return 'activities';
-  if (/lodging|hotel|stay|aparthotel/.test(text)) return 'lodging';
-  if (/car|rental|transport|suv|fuel/.test(text)) return 'transportation';
-  if (/food|dining|restaurant|grocery|snack/.test(text)) return 'food';
-  if (/buffer|souvenir|gift|surprise/.test(text)) return 'buffer';
-  return 'fallback';
+  return budgetCategoryKey(item);
 }
 
 function displayFor(item: BudgetItem) {
@@ -173,6 +180,10 @@ function pct(value: number, total: number) {
 
 function barHeight(value: number) {
   return `${Math.max(10, Math.min(100, value / 28))}%`;
+}
+
+function barHeightFromMax(value: number, max: number) {
+  return `${Math.max(12, Math.min(100, value / Math.max(1, max) * 100))}%`;
 }
 
 function Sparkline() {
@@ -199,12 +210,16 @@ function MetricCard({ icon, label, value, note, className = '' }: { icon: ReactN
 function CategoryCard({
   item,
   draft,
+  syncState,
   onDraft,
+  onSelect,
   onSave
 }: {
   item: BudgetItem;
   draft: Partial<BudgetItem>;
+  syncState?: 'synced' | 'muted';
   onDraft: (next: Partial<BudgetItem>) => void;
+  onSelect: () => void;
   onSave: () => void;
 }) {
   const presentation = displayFor(item);
@@ -215,7 +230,14 @@ function CategoryCard({
   const progress = pct(actual, planned);
 
   return (
-    <article className="budget-category-card" aria-label={`Budget category ${presentation.title}`}>
+    <motion.article
+      layout
+      className={`budget-category-card ${syncState === 'synced' ? 'is-synced' : ''} ${syncState === 'muted' ? 'is-muted' : ''}`}
+      aria-label={`Budget category ${presentation.title}`}
+      onClick={onSelect}
+      whileHover={{ y: -3 }}
+      transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+    >
       <div className="budget-category-image">
         <img src={presentation.image} alt="" loading="lazy" />
         <span><Icon size={22} /></span>
@@ -265,39 +287,367 @@ function CategoryCard({
         </div>
       </div>
       <ArrowRight className="budget-card-arrow" size={18} aria-hidden="true" />
-    </article>
+    </motion.article>
   );
 }
 
-function DonutChart({ items, total }: { items: BudgetItem[]; total: number }) {
-  const colors = ['#0b5d3b', '#2f7d67', '#2d73a3', '#d9b95b', '#b56d48', '#7a6ca8'];
-  let cursor = 0;
-  const gradient = items.map((item, index) => {
-    const share = total > 0 ? item.planned / total * 100 : 0;
-    const part = `${colors[index % colors.length]} ${cursor}% ${cursor + share}%`;
-    cursor += share;
-    return part;
-  }).join(', ');
-
+function InteractiveDonutChart({
+  intelligence,
+  selectedCategory,
+  hoveredCategory,
+  onHover,
+  onSelect,
+  onExpand
+}: {
+  intelligence: BudgetIntelligence;
+  selectedCategory?: BudgetCategoryKey;
+  hoveredCategory?: BudgetCategoryKey;
+  onHover: (key?: BudgetCategoryKey) => void;
+  onSelect: (category: CategoryMetric) => void;
+  onExpand: (category: CategoryMetric) => void;
+}) {
+  const activeCategory = intelligence.categories.find((category) => category.key === (hoveredCategory || selectedCategory));
   return (
-    <div className="budget-donut-panel">
-      <div className="budget-analytics-donut" style={{ '--budget-donut': gradient } as CSSProperties}>
-        <strong>{euroMoney.format(total)}</strong>
-        <span>Total Plan</span>
+    <div className="budget-donut-panel budget-donut-panel-interactive">
+      <div className="budget-analytics-donut budget-recharts-donut" onDoubleClick={() => activeCategory && onExpand(activeCategory)}>
+        <PieChart width={156} height={156}>
+          <Pie
+            data={intelligence.categories}
+            dataKey="planned"
+            nameKey="title"
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={70}
+            paddingAngle={2}
+            isAnimationActive
+          >
+            {intelligence.categories.map((category) => {
+              const active = category.key === (hoveredCategory || selectedCategory);
+              const dimmed = Boolean(hoveredCategory || selectedCategory) && !active;
+              return (
+                <Cell
+                  key={category.id}
+                  fill={category.color}
+                  opacity={dimmed ? 0.26 : 1}
+                  stroke={active ? '#fff8d8' : 'rgba(255,255,255,0.54)'}
+                  strokeWidth={active ? 4 : 1}
+                  style={{ filter: active ? 'drop-shadow(0 0 12px rgba(94, 224, 160, .68))' : undefined, cursor: 'pointer' }}
+                  onMouseEnter={() => onHover(category.key)}
+                  onMouseLeave={() => onHover(undefined)}
+                  onClick={() => onSelect(category)}
+                  onDoubleClick={() => onExpand(category)}
+                />
+              );
+            })}
+          </Pie>
+        </PieChart>
+        <div className="budget-donut-center">
+          <strong>{euroMoney.format(intelligence.totalPlanned)}</strong>
+          <span>Total Plan</span>
+        </div>
+        <AnimatePresence>
+          {activeCategory && (
+            <motion.div
+              className="budget-chart-tooltip"
+              initial={{ opacity: 0, y: 8, scale: .98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: .98 }}
+            >
+              <strong>{activeCategory.title}</strong>
+              <span>{euroMoney.format(activeCategory.planned)} planned</span>
+              <span>{euroMoney.format(activeCategory.actual)} actual</span>
+              <span>{euroMoney.format(activeCategory.remaining)} remaining</span>
+              <span>{activeCategory.percent}% of total budget</span>
+              <em>{activeCategory.cityImpact} impact: {activeCategory.recommendation}</em>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <div className="budget-donut-legend">
-        {items.map((item, index) => {
-          const presentation = displayFor(item);
+      <div className="budget-donut-legend budget-donut-legend-buttons">
+        {intelligence.categories.map((category) => (
+          <button
+            type="button"
+            key={category.id}
+            aria-label={`Filter ${category.title}`}
+            aria-pressed={selectedCategory === category.key}
+            onMouseEnter={() => onHover(category.key)}
+            onMouseLeave={() => onHover(undefined)}
+            onClick={() => onSelect(category)}
+            onDoubleClick={() => onExpand(category)}
+          >
+            <i style={{ background: category.color }} />
+            <span>{category.title}</span>
+            <strong>{category.percent}%</strong>
+          </button>
+        ))}
+      </div>
+      <button className="budget-expand-analysis" type="button" onClick={() => activeCategory && onExpand(activeCategory)} disabled={!activeCategory}>
+        Expand Analysis
+      </button>
+    </div>
+  );
+}
+
+function SpendingTimeline({
+  filters,
+  points,
+  hoveredCity,
+  onMode,
+  onScrub,
+  onHoverCity,
+  onSelectCity
+}: {
+  filters: BudgetFilterState;
+  points: TimelinePoint[];
+  hoveredCity?: string;
+  onMode: (mode: TimelineMode) => void;
+  onScrub: (value: number) => void;
+  onHoverCity: (city?: string) => void;
+  onSelectCity: (city: string) => void;
+}) {
+  const max = Math.max(1, ...points.map((point) => point.planned));
+  const scrubIndex = Math.min(points.length - 1, Math.max(0, Math.floor((filters.scrubberPercent / 100) * points.length)));
+  const scrubPoint = points[scrubIndex];
+  const modes: Array<{ id: TimelineMode; label: string }> = [
+    { id: 'daily', label: 'Daily' },
+    { id: 'city', label: 'City' },
+    { id: 'category', label: 'Category' },
+    { id: 'traveler', label: 'Traveler' },
+    { id: 'route', label: 'Route Segment' }
+  ];
+  return (
+    <div className="budget-timeline-system">
+      <div className="budget-segmented-control" aria-label="Timeline modes">
+        {modes.map((mode) => (
+          <button key={mode.id} type="button" className={filters.timelineMode === mode.id ? 'active' : ''} onClick={() => onMode(mode.id)}>
+            {mode.label}
+          </button>
+        ))}
+      </div>
+      <div className="budget-filter-strip" aria-label="Timeline filters">
+        <span>{filters.plannedActual === 'both' ? 'Planned + actual' : filters.plannedActual}</span>
+        <span>{filters.spendType === 'all' ? 'Fixed + flexible' : filters.spendType}</span>
+        <span>{filters.dateRange === 'all' ? 'Full route' : filters.dateRange}</span>
+      </div>
+      <div className="budget-timeline-chart budget-timeline-chart-live" aria-label="Trip spending timeline">
+        {points.map((point) => {
+          const city = point.city || point.label;
+          const active = hoveredCity === city || filters.selectedCity === city;
           return (
-            <span key={item.id}>
-              <i style={{ background: colors[index % colors.length] }} />
-              {presentation.title}
-              <strong>{pct(item.planned, total)}%</strong>
-            </span>
+            <button
+              type="button"
+              key={point.id}
+              className={active ? 'active' : ''}
+              onMouseEnter={() => onHoverCity(city)}
+              onMouseLeave={() => onHoverCity(undefined)}
+              onClick={() => onSelectCity(city)}
+              aria-label={`Explore ${point.label}`}
+            >
+              <span className="budget-bar budget-bar-planned" style={{ height: barHeightFromMax(point.planned, max) }} />
+              <span className="budget-bar budget-bar-actual" style={{ height: barHeightFromMax(point.actual, max) }} />
+              <small>{point.label}</small>
+              <em>{euroMoney.format(point.planned)}</em>
+            </button>
           );
         })}
       </div>
+      <label className="budget-scrubber">
+        <span>Journey replay</span>
+        <input aria-label="Timeline spending scrubber" type="range" min="0" max="100" value={filters.scrubberPercent} onChange={(event) => onScrub(Number(event.target.value))} />
+        <strong>{scrubPoint ? `${scrubPoint.label}: ${euroMoney.format(scrubPoint.planned)}` : 'Route start'}</strong>
+      </label>
     </div>
+  );
+}
+
+function ForecastSimulator({
+  intelligence,
+  scenarioDeltas,
+  onScenario
+}: {
+  intelligence: BudgetIntelligence;
+  scenarioDeltas: Record<string, ScenarioDelta>;
+  onScenario: (id: string, delta: ScenarioDelta) => void;
+}) {
+  const food = intelligence.categories.find((category) => category.key === 'food');
+  const lodging = intelligence.categories.find((category) => category.key === 'lodging');
+  const flights = intelligence.categories.find((category) => category.key === 'flights');
+  const activities = intelligence.categories.find((category) => category.key === 'activities');
+  return (
+    <div className="budget-forecast-system">
+      <div className="budget-forecast-metrics">
+        {intelligence.forecast.metrics.map((metric) => (
+          <motion.div key={metric.id} whileHover={{ y: -2 }}>
+            <strong>{euroMoney.format(metric.value)}</strong>
+            <span>{metric.label}</span>
+            <Sparkline />
+            <small>{metric.confidence}% confidence</small>
+            <em>{metric.savings}</em>
+          </motion.div>
+        ))}
+      </div>
+      <div className="budget-scenario-panel">
+        <div className="budget-panel-title-row">
+          <h3>Simulate Budget Scenarios</h3>
+          <span className="budget-scenario-total">Scenario projection <strong>EUR {Math.round(intelligence.totalScenarioDelta).toLocaleString('en-US')}</strong></span>
+        </div>
+        <div className="budget-scenario-buttons">
+          {flights && <button type="button" onClick={() => onScenario(flights.id, { multiplier: 1.15 })}>Flights +15%</button>}
+          {lodging && <button type="button" onClick={() => onScenario(lodging.id, { plannedDelta: 600 })}>Upgrade lodging</button>}
+          {activities && <button type="button" onClick={() => onScenario(activities.id, { plannedDelta: 220 })}>Add castle tour</button>}
+        </div>
+        <div className="budget-scenario-sliders">
+          {intelligence.categories.filter((category) => category.key === 'food' || category.key === 'lodging' || category.key === 'activities').map((category) => (
+            <label key={category.id}>
+              <span>{category.title}</span>
+              <input
+                aria-label={`${category.title} scenario adjustment`}
+                type="range"
+                min="-500"
+                max="1500"
+                step="50"
+                value={scenarioDeltas[category.id]?.plannedDelta || 0}
+                onChange={(event) => onScenario(category.id, { plannedDelta: Number(event.target.value) })}
+              />
+              <strong>EUR {Math.round(scenarioDeltas[category.id]?.plannedDelta || 0).toLocaleString('en-US')}</strong>
+            </label>
+          ))}
+          {food ? <p>{food.insight}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopCitiesIntelligence({
+  intelligence,
+  selectedCity,
+  hoveredCity,
+  onHoverCity,
+  onSelectCity,
+  onExpand
+}: {
+  intelligence: BudgetIntelligence;
+  selectedCity?: string;
+  hoveredCity?: string;
+  onHoverCity: (city?: string) => void;
+  onSelectCity: (city: string) => void;
+  onExpand: (city: CityMetric) => void;
+}) {
+  const activeCity = intelligence.cities.find((city) => city.city === (hoveredCity || selectedCity)) || intelligence.cities[0];
+  return (
+    <div className="budget-city-intelligence-grid">
+      <div className="budget-city-list budget-city-list-live">
+        {intelligence.cities.map((city) => (
+          <button
+            type="button"
+            key={city.city}
+            className={selectedCity === city.city ? 'active' : ''}
+            aria-label={`Focus ${city.city}`}
+            onMouseEnter={() => onHoverCity(city.city)}
+            onMouseLeave={() => onHoverCity(undefined)}
+            onClick={() => onSelectCity(city.city)}
+            onDoubleClick={() => onExpand(city)}
+          >
+            <span>{city.city}</span>
+            <i><b style={{ width: `${Math.max(8, city.percent * 3)}%` }} /></i>
+            <strong>{euroMoney.format(city.planned)}</strong>
+            <small>{city.percent}%</small>
+          </button>
+        ))}
+      </div>
+      <div className="budget-route-preview" aria-label="Budget route preview">
+        <img src={dashboardAssets.irelandMap} alt="" loading="lazy" />
+        {intelligence.cities.map((city) => (
+          <button
+            type="button"
+            key={city.city}
+            className={city.city === activeCity?.city ? 'active' : ''}
+            style={{ left: `${city.x}%`, top: `${city.y}%` }}
+            aria-label={`Route city ${city.city}`}
+            onClick={() => onSelectCity(city.city)}
+          >
+            <span>{city.city}</span>
+          </button>
+        ))}
+      </div>
+      {activeCity && (
+        <motion.div className="budget-city-detail" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} key={activeCity.city}>
+          <h3>{activeCity.city} intelligence panel</h3>
+          <p>{activeCity.insight}</p>
+          <div>
+            <span>Lodging <strong>{euroMoney.format(activeCity.categories.lodging || 0)}</strong></span>
+            <span>Food <strong>{euroMoney.format(activeCity.categories.food || 0)}</strong></span>
+            <span>Attractions <strong>{euroMoney.format(activeCity.categories.activities || 0)}</strong></span>
+          </div>
+          <button type="button" onClick={() => onExpand(activeCity)}>Expand City Details</button>
+        </motion.div>
+      )}
+      <div className="budget-itinerary-preview" aria-label="Synced itinerary preview">
+        <h3>Synced itinerary preview</h3>
+        {(activeCity?.days || []).slice(0, 3).map((day) => (
+          <article key={day.id}>
+            <strong>Day {day.day}</strong>
+            <span>{day.title}</span>
+            <small>{day.dateLabel}</small>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FinancialIntelligenceModal({
+  intelligence,
+  target,
+  onClose
+}: {
+  intelligence: BudgetIntelligence;
+  target?: { type: 'category' | 'city'; id: string };
+  onClose: () => void;
+}) {
+  const category = target?.type === 'category' ? intelligence.categories.find((item) => item.key === target.id) : undefined;
+  const city = target?.type === 'city' ? intelligence.cities.find((item) => item.city === target.id) : undefined;
+  const title = category?.title || city?.city || 'Financial Intelligence';
+  return (
+    <AnimatePresence>
+      {target && (
+        <motion.div className="budget-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.section className="budget-intelligence-modal" initial={{ y: 32, scale: .98 }} animate={{ y: 0, scale: 1 }} exit={{ y: 32, scale: .98 }} role="dialog" aria-modal="true" aria-label={`${title} financial intelligence`}>
+            <button className="budget-modal-close" type="button" onClick={onClose} aria-label="Close financial intelligence"><X size={18} /></button>
+            <header>
+              <span><Sparkles size={16} /> Fullscreen Financial Intelligence</span>
+              <h2>{title}</h2>
+              <p>{category?.insight || city?.insight || intelligence.activeInsight.message}</p>
+            </header>
+            <div className="budget-modal-grid">
+              <article>
+                <h3>Trend Analysis</h3>
+                <strong>{euroMoney.format(category?.planned || city?.planned || intelligence.totalPlanned)}</strong>
+                <p>Historical comparison is tracking below peak summer volatility when refundable holds remain open.</p>
+              </article>
+              <article>
+                <h3>Daily Average</h3>
+                <strong>{euroMoney.format(city?.dailyAverage || intelligence.forecast.perDay)}</strong>
+                <p>Confidence improves when lodging and major experiences are locked before the final price-watch window.</p>
+              </article>
+              <article>
+                <h3>Spending Heatmap</h3>
+                <div className="budget-heatmap" aria-label="Spending heatmap">
+                  {intelligence.timeline.daily.slice(0, 12).map((day) => <span key={day.id} style={{ opacity: Math.max(.32, day.planned / Math.max(1, intelligence.forecast.perDay * 1.8)) }} />)}
+                </div>
+                <p>Relocation days carry the strongest transportation and snack variance.</p>
+              </article>
+              <article>
+                <h3>Concierge Recommendation</h3>
+                <p>{category?.recommendation || city?.savings || 'Keep premium memories protected while allowing dining and souvenir flexibility.'}</p>
+              </article>
+            </div>
+          </motion.section>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -436,7 +786,7 @@ function mergeDraftStatus(answers: ResearchAnswer[], draft: ResearchDraft, fallb
   }));
 }
 
-function budgetAgentContext(budget: BudgetResponse, itinerary: DayPlan[], trip?: Trip, currencySummary?: string) {
+function budgetAgentContext(budget: BudgetResponse, itinerary: DayPlan[], trip?: Trip, currencySummary?: string, interactionContext?: string) {
   const tripDetail = trip
     ? {
         title: trip.title,
@@ -465,7 +815,21 @@ function budgetAgentContext(budget: BudgetResponse, itinerary: DayPlan[], trip?:
     `Budget summary JSON: ${JSON.stringify(budget.summary)}.`,
     `Budget items JSON: ${JSON.stringify(budget.items.map((item) => ({ id: item.id, category: item.category, label: item.label, planned: item.planned, actual: item.actual, status: item.status })))}.`,
     `Visible itinerary directory JSON: ${JSON.stringify(itineraryDirectory)}.`,
-    currencySummary ? `Currency context: ${currencySummary}.` : 'Currency context: live USD to EUR rate unavailable.'
+    currencySummary ? `Currency context: ${currencySummary}.` : 'Currency context: live USD to EUR rate unavailable.',
+    interactionContext || 'Interactive budget filters: none selected.'
+  ].join('\n');
+}
+
+function budgetInteractionContext(filters: BudgetFilterState, scenarioDeltas: Record<string, ScenarioDelta>, intelligence: BudgetIntelligence) {
+  return [
+    `Selected budget category: ${filters.selectedCategory || 'none'}.`,
+    `Selected budget city: ${filters.selectedCity || 'none'}.`,
+    `Timeline mode: ${filters.timelineMode}.`,
+    `Spend type filter: ${filters.spendType}.`,
+    `Scenario deltas JSON: ${JSON.stringify(scenarioDeltas)}.`,
+    `Projected planned total: ${intelligence.totalPlanned}.`,
+    `Projected actual total: ${intelligence.totalActual}.`,
+    `Active local insight: ${intelligence.activeInsight.message}.`
   ].join('\n');
 }
 
@@ -477,16 +841,34 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
   const [busyAction, setBusyAction] = useState<string>();
   const [agentError, setAgentError] = useState('');
   const [lastRequest, setLastRequest] = useState<BudgetIntelligenceRequest>();
+  const [filters, setFilters] = useState<BudgetFilterState>({
+    selectedCategory: undefined,
+    selectedCity: undefined,
+    dateRange: 'all',
+    traveler: 'all',
+    plannedActual: 'both',
+    spendType: 'all',
+    timelineMode: 'city',
+    scrubberPercent: 0
+  });
+  const [scenarioDeltas, setScenarioDeltas] = useState<Record<string, ScenarioDelta>>({});
+  const [hoveredCategory, setHoveredCategory] = useState<BudgetCategoryKey>();
+  const [hoveredCity, setHoveredCity] = useState<string>();
+  const [analysisTarget, setAnalysisTarget] = useState<{ type: 'category' | 'city'; id: string }>();
   const { status: currencyStatus, rate, previousRate, error: currencyError, isOffline, isRefreshing, retry: retryCurrency } = useCurrencyRate();
 
   const summary = budget?.summary;
   const items = budget?.items || [];
+  const intelligence = useMemo(
+    () => deriveBudgetIntelligence({ items, itinerary, trip, filters, scenarioDeltas }),
+    [items, itinerary, trip, filters, scenarioDeltas]
+  );
   const actualPercent = summary ? pct(summary.actual, summary.target) : 0;
   const remaining = summary ? summary.target - summary.actual : 0;
   const budgetHealth = actualPercent < 72 ? 'Comfortable' : actualPercent < 92 ? 'Watch closely' : 'Tight';
-  const dailyBudget = summary ? Math.round(summary.planned / 13) : 0;
-  const perTraveler = Math.round(dailyBudget / 5);
-  const cityAverage = Math.round((summary?.planned || 0) / Math.max(1, citySpend.length));
+  const dailyBudget = summary ? intelligence.forecast.perDay : 0;
+  const perTraveler = intelligence.forecast.perTravelerPerDay;
+  const cityAverage = intelligence.forecast.perCityAverage;
   const currencySummary = rate ? formatExchangeRate(rate) : undefined;
   const currencyDetail = rate
     ? `${formatExchangeRate(rate)}${previousRate ? `, changed from ${previousRate.rate.toFixed(2)}` : ''}${isRefreshing ? ', refreshing' : ''}`
@@ -494,7 +876,7 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
       ? 'Loading live USD to EUR rate.'
       : currencyError || 'Currency rate unavailable.';
 
-  const categories = useMemo(() => items.map((item) => ({ item, presentation: displayFor(item) })), [items]);
+  const categories = useMemo(() => items.map((item) => ({ item, presentation: displayFor(item), key: budgetKey(item) })), [items]);
   const activeAnswer = answers.find((answer) => answer.id === activeAnswerId) || answers[0];
 
   if (!budget || !summary) return null;
@@ -505,7 +887,11 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
     setAgentError('');
     setActiveInsight(`${request.question} Budget AI is checking the saved plan and route context.`);
     try {
-      const answer = await onAsk(request.question, Boolean(request.deep), budgetAgentContext(budget, itinerary, trip, currencySummary));
+      const answer = await onAsk(
+        request.question,
+        Boolean(request.deep),
+        budgetAgentContext(budget, itinerary, trip, currencySummary, budgetInteractionContext(filters, scenarioDeltas, intelligence))
+      );
       setAnswers((current) => [answer, ...current.filter((item) => item.id !== answer.id)]);
       setActiveAnswerId(answer.id);
       setActiveInsight('Budget AI returned a reviewable recommendation. Apply drafts only when the change looks right.');
@@ -577,6 +963,27 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
     setActiveInsight(`${displayFor(item).title} updated. The finance view is recalculating your remaining flexibility.`);
   };
 
+  const selectCategory = (category: CategoryMetric) => {
+    setFilters((current) => ({
+      ...current,
+      selectedCategory: current.selectedCategory === category.key ? undefined : category.key,
+      spendType: category.spendType
+    }));
+    setActiveInsight(`${category.title} intelligence active. ${category.insight}`);
+  };
+
+  const selectCity = (city: string) => {
+    if (!city || /^Traveler|budget-|route-/i.test(city)) return;
+    setFilters((current) => ({ ...current, selectedCity: current.selectedCity === city ? undefined : city }));
+    const cityMetric = intelligence.cities.find((item) => item.city === city);
+    setActiveInsight(cityMetric ? `${cityMetric.city} spending focus active. ${cityMetric.insight}` : `${city} spending selected.`);
+  };
+
+  const updateScenario = (id: string, delta: ScenarioDelta) => {
+    setScenarioDeltas((current) => ({ ...current, [id]: delta }));
+    setActiveInsight('What-if forecast updated. Saved budget records are unchanged until you save a category or apply an AI draft.');
+  };
+
   return (
     <section className="budget-dashboard">
       <header className="budget-hero">
@@ -589,8 +996,8 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
         </div>
         <div className="budget-metric-grid">
           <MetricCard icon={<Coins size={22} />} label="Total Budget" value={euroMoney.format(summary.target)} note="Travel plan" />
-          <MetricCard icon={<TrendingUp size={22} />} label="Planned Spend" value={euroMoney.format(summary.planned)} note={`${summary.plannedPercent}% allocated`} />
-          <MetricCard icon={<WalletCards size={22} />} label="Actual Spend" value={euroMoney.format(summary.actual)} note={`${actualPercent}% spent`} />
+          <MetricCard icon={<TrendingUp size={22} />} label="Planned Spend" value={euroMoney.format(intelligence.totalPlanned || summary.planned)} note={`${pct(intelligence.totalPlanned || summary.planned, summary.target)}% allocated`} />
+          <MetricCard icon={<WalletCards size={22} />} label="Actual Spend" value={euroMoney.format(intelligence.totalActual || summary.actual)} note={`${actualPercent}% spent`} />
           <MetricCard icon={<PiggyBank size={22} />} label="Remaining" value={euroMoney.format(remaining)} note={`${pct(remaining, summary.target)}% left`} />
           <article className="budget-metric-card budget-health-card">
             <div className="budget-health-ring" style={{ '--health': 100 - actualPercent } as CSSProperties} aria-hidden="true"><span /></div>
@@ -616,12 +1023,17 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
           </section>
 
           <div className="budget-category-stack">
-            {categories.map(({ item }) => (
+            {categories.map(({ item, key }) => (
               <CategoryCard
                 key={item.id}
                 item={item}
                 draft={drafts[item.id] || {}}
+                syncState={filters.selectedCategory ? (filters.selectedCategory === key ? 'synced' : 'muted') : undefined}
                 onDraft={(next) => setDrafts((current) => ({ ...current, [item.id]: { ...current[item.id], ...next } }))}
+                onSelect={() => {
+                  const metric = intelligence.categories.find((category) => category.id === item.id);
+                  if (metric) selectCategory(metric);
+                }}
                 onSave={() => void saveCategory(item)}
               />
             ))}
@@ -631,7 +1043,14 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
         <aside className="budget-analytics-column">
           <section className="budget-panel">
             <h2>Budget Breakdown</h2>
-            <DonutChart items={items} total={summary.planned || summary.target} />
+            <InteractiveDonutChart
+              intelligence={intelligence}
+              selectedCategory={filters.selectedCategory}
+              hoveredCategory={hoveredCategory}
+              onHover={setHoveredCategory}
+              onSelect={selectCategory}
+              onExpand={(category) => setAnalysisTarget({ type: 'category', id: category.key })}
+            />
           </section>
 
           <section className="budget-panel">
@@ -639,42 +1058,32 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
               <h2>Trip Spending Timeline</h2>
               <span><i /> Planned <i /> Actual</span>
             </div>
-            <div className="budget-timeline-chart" aria-label="Trip spending timeline">
-              {cityTimeline.map((city) => (
-                <div key={city.city}>
-                  <span className="budget-bar budget-bar-planned" style={{ height: barHeight(city.planned) }} />
-                  <span className="budget-bar budget-bar-actual" style={{ height: barHeight(city.actual) }} />
-                  <small>{city.city}</small>
-                </div>
-              ))}
-            </div>
+            <SpendingTimeline
+              filters={filters}
+              points={intelligence.activeTimeline}
+              hoveredCity={hoveredCity}
+              onMode={(timelineMode) => setFilters((current) => ({ ...current, timelineMode }))}
+              onScrub={(scrubberPercent) => setFilters((current) => ({ ...current, scrubberPercent }))}
+              onHoverCity={setHoveredCity}
+              onSelectCity={selectCity}
+            />
           </section>
 
           <section className="budget-panel budget-forecast-panel">
             <h2>Daily Budget Forecast</h2>
-            <div>
-              <strong>{euroMoney.format(dailyBudget)}</strong><span>Per Day</span><Sparkline />
-            </div>
-            <div>
-              <strong>{euroMoney.format(perTraveler)}</strong><span>Per Traveler / Day</span><Sparkline />
-            </div>
-            <div>
-              <strong>{euroMoney.format(cityAverage)}</strong><span>Per City avg.</span><Sparkline />
-            </div>
+            <ForecastSimulator intelligence={intelligence} scenarioDeltas={scenarioDeltas} onScenario={updateScenario} />
           </section>
 
           <section className="budget-panel">
             <h2>Top Spending Cities</h2>
-            <div className="budget-city-list">
-              {citySpend.map((city) => (
-                <div key={city.city}>
-                  <span>{city.city}</span>
-                  <i><b style={{ width: `${city.percent * 3}%` }} /></i>
-                  <strong>{euroMoney.format(city.amount)}</strong>
-                  <small>{city.percent}%</small>
-                </div>
-              ))}
-            </div>
+            <TopCitiesIntelligence
+              intelligence={intelligence}
+              selectedCity={filters.selectedCity}
+              hoveredCity={hoveredCity}
+              onHoverCity={setHoveredCity}
+              onSelectCity={selectCity}
+              onExpand={(city) => setAnalysisTarget({ type: 'city', id: city.city })}
+            />
           </section>
         </aside>
 
@@ -782,6 +1191,8 @@ export function BudgetDashboard({ budget, trip, itinerary = [], sources = [], on
           </section>
         </aside>
       </div>
+
+      <FinancialIntelligenceModal intelligence={intelligence} target={analysisTarget} onClose={() => setAnalysisTarget(undefined)} />
 
       <nav className="budget-action-dock" aria-label="Budget actions">
         <button type="button" onClick={() => setActiveInsight('Add expense mode opened. Choose a category card, enter actual spend, then save changes.')}><Plus size={16} /> Add Expense</button>
