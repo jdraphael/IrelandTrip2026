@@ -2,64 +2,27 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { BudgetResponse } from '../src/api';
-import { BudgetDashboard } from '../src/components/BudgetDashboard';
+import { BudgetIntelligenceCenter } from '../src/components/budget/BudgetIntelligenceCenter';
+import { BudgetWorkspace } from '../src/components/budget/BudgetWorkspace';
 import type { DayPlan, ResearchAnswer, Trip } from '../src/types';
 
 const budget: BudgetResponse = {
-  items: [],
-  summary: {
-    target: 15000,
-    planned: 15000,
-    actual: 0,
-    remainingPlanned: 0,
-    remainingActual: 15000,
-    plannedPercent: 100,
-    actualPercent: 0
-  }
-};
-
-describe('BudgetDashboard metric row', () => {
-  it('renders the compact fintech metric card structure', () => {
-    const { container } = render(
-      <BudgetDashboard
-        budget={budget}
-        itinerary={[]}
-        sources={[]}
-        onSave={vi.fn()}
-        onAsk={vi.fn()}
-        onApplyDraft={vi.fn()}
-        onDismissDraft={vi.fn()}
-      />
-    );
-
-    const cards = container.querySelectorAll('.budget-metric-card');
-    expect(cards).toHaveLength(5);
-    expect(container.querySelectorAll('.budget-metric-copy')).toHaveLength(5);
-    expect(container.querySelectorAll('.budget-metric-label')).toHaveLength(5);
-    expect(container.querySelectorAll('.budget-metric-value')).toHaveLength(5);
-    expect(container.querySelectorAll('.budget-metric-note')).toHaveLength(5);
-    expect(container.querySelector('.budget-health-card .budget-health-ring')).toBeInTheDocument();
-    expect(container.querySelector('.budget-health-card .budget-metric-value')).toHaveTextContent('Comfortable');
-  });
-});
-
-const interactiveBudget: BudgetResponse = {
   items: [
-    { id: 'budget-flights', category: 'Flights', label: 'LEX to Dublin roundtrip for five', planned: 6000, actual: 0, status: 'watching' },
-    { id: 'budget-lodging', category: 'Lodging', label: 'Hotels and farm stays', planned: 3200, actual: 0, status: 'researching' },
-    { id: 'budget-car', category: 'Transportation', label: 'Automatic SUV and fuel', planned: 1500, actual: 0, status: 'researching' },
-    { id: 'budget-food', category: 'Food', label: 'Restaurants and groceries', planned: 2000, actual: 0, status: 'researching' },
-    { id: 'budget-activities', category: 'Activities', label: 'Castles and wildlife', planned: 1600, actual: 0, status: 'researching' },
+    { id: 'budget-flights', category: 'Flights', label: 'LEX to Dublin roundtrip for five', planned: 6000, actual: 1200, status: 'watching' },
+    { id: 'budget-lodging', category: 'Lodging', label: 'Hotels and farm stays', planned: 3200, actual: 800, status: 'researching' },
+    { id: 'budget-car', category: 'Transportation', label: 'Automatic SUV and fuel', planned: 1500, actual: 200, status: 'researching' },
+    { id: 'budget-food', category: 'Food', label: 'Restaurants and groceries', planned: 2000, actual: 300, status: 'researching' },
+    { id: 'budget-activities', category: 'Activities', label: 'Castles and wildlife', planned: 1600, actual: 100, status: 'researching' },
     { id: 'budget-buffer', category: 'Buffer', label: 'Souvenirs', planned: 700, actual: 0, status: 'researching' }
   ],
   summary: {
     target: 15000,
     planned: 15000,
-    actual: 0,
+    actual: 2600,
     remainingPlanned: 0,
-    remainingActual: 15000,
+    remainingActual: 12400,
     plannedPercent: 100,
-    actualPercent: 0
+    actualPercent: 17
   }
 };
 
@@ -103,18 +66,18 @@ function day(id: string, number: number, base: string, dateLabel: string, title:
   };
 }
 
-function renderInteractiveBudget(overrides: Partial<React.ComponentProps<typeof BudgetDashboard>> = {}) {
+function props(overrides: Partial<React.ComponentProps<typeof BudgetWorkspace>> = {}) {
   const askAnswer: ResearchAnswer = {
     id: 'answer',
     question: 'question',
-    answer: 'Galway scenario reviewed.',
+    answer: 'Budget AI context received.',
     createdAt: '2026-05-20T00:00:00Z',
     sources: [],
     warnings: [],
     drafts: []
   };
-  const props = {
-    budget: interactiveBudget,
+  return {
+    budget,
     trip,
     itinerary,
     sources: [],
@@ -122,65 +85,93 @@ function renderInteractiveBudget(overrides: Partial<React.ComponentProps<typeof 
     onAsk: vi.fn().mockResolvedValue(askAnswer),
     onApplyDraft: vi.fn(),
     onDismissDraft: vi.fn(),
+    onOpenIntelligence: vi.fn(),
     ...overrides
   };
-  const view = render(<BudgetDashboard {...props} />);
-  return { ...view, props };
 }
 
-describe('BudgetDashboard interactive intelligence center', () => {
-  it('filters the dashboard when a donut category is selected', async () => {
-    renderInteractiveBudget();
+describe('BudgetWorkspace', () => {
+  it('renders the operational workspace without the large dashboard panels', () => {
+    const view = render(<BudgetWorkspace {...props()} />);
 
-    const foodFilter = screen.getByRole('button', { name: /Filter Food & Dining/i });
-    await userEvent.click(foodFilter);
-
-    expect(foodFilter).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('status')).toHaveTextContent(/Food & Dining intelligence active/i);
-    expect(screen.getByLabelText(/Budget category Food & Dining/i)).toHaveClass('is-synced');
-    expect(screen.getByLabelText(/Budget category Flights & Transportation/i)).toHaveClass('is-muted');
+    expect(screen.getByRole('heading', { name: /Ireland Expedition Budget/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Budget Categories/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Budget category Flights & Transportation/i)).toBeInTheDocument();
+    expect(view.container.querySelectorAll('.budget-metric-card')).toHaveLength(5);
+    expect(screen.getByRole('button', { name: /Open Intelligence Center/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Budget Breakdown/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Trip Spending Timeline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Daily Budget Forecast/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Top Spending Cities/i })).not.toBeInTheDocument();
   });
 
-  it('syncs city selection with route and itinerary previews', async () => {
-    renderInteractiveBudget();
-
-    await userEvent.click(screen.getByRole('button', { name: /Focus Galway/i }));
-
-    expect(screen.getByText(/Galway intelligence panel/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Budget route preview/i)).toHaveTextContent('Galway');
-    expect(screen.getByLabelText(/Synced itinerary preview/i)).toHaveTextContent('Day 10');
-  });
-
-  it('keeps scenario slider edits temporary until explicit save', () => {
+  it('saves category edits and keeps scenario intelligence off the workspace', async () => {
     const onSave = vi.fn();
-    renderInteractiveBudget({ onSave });
+    render(<BudgetWorkspace {...props({ onSave })} />);
+
+    const lodgingCard = screen.getByLabelText(/Budget category Lodging & Stays/i);
+    const plannedInput = within(lodgingCard).getByLabelText(/Planned amount/i);
+    await userEvent.clear(plannedInput);
+    await userEvent.type(plannedInput, '3450');
+    await userEvent.click(within(lodgingCard).getByRole('button', { name: /Save Lodging & Stays/i }));
+
+    expect(onSave).toHaveBeenCalledWith([{ id: 'budget-lodging', planned: 3450 }]);
+    expect(screen.queryByLabelText(/Food & Dining scenario adjustment/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('BudgetIntelligenceCenter', () => {
+  it('renders the immersive intelligence dashboard panels', () => {
+    render(<BudgetIntelligenceCenter {...props()} />);
+
+    expect(screen.getByRole('heading', { name: /Budget Intelligence Center/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Spending Overview/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Daily Spend Forecast/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Spend by City/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /AI Financial Insights/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Scenario Simulator/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Route Spend Timeline/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Mobile intelligence sections/i)).toBeInTheDocument();
+  });
+
+  it('keeps scenario changes temporary until explicit save', () => {
+    const onSave = vi.fn();
+    render(<BudgetIntelligenceCenter {...props({ onSave })} />);
 
     fireEvent.change(screen.getByLabelText(/Food & Dining scenario adjustment/i), { target: { value: '300' } });
 
-    expect(screen.getByText(/Scenario projection/i)).toHaveTextContent('EUR 300');
+    expect(screen.getByText(/vs Current Plan/i)).toHaveTextContent('+300');
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('sends current filter and scenario state to Budget AI', async () => {
+  it('expands city intelligence cards into overlays', async () => {
+    render(<BudgetIntelligenceCenter {...props()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Expand Galway intelligence/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /Galway intelligence details/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/lodging pressure/i)).toBeInTheDocument();
+  });
+
+  it('sends selected scenario context to Budget AI', async () => {
     const onAsk = vi.fn().mockResolvedValue({
       id: 'answer',
       question: 'question',
-      answer: 'Budget AI context received.',
+      answer: 'Scenario context received.',
       createdAt: '2026-05-20T00:00:00Z',
       sources: [],
       warnings: [],
       drafts: []
     } satisfies ResearchAnswer);
-    renderInteractiveBudget({ onAsk });
+    render(<BudgetIntelligenceCenter {...props({ onAsk })} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /Focus Galway/i }));
     fireEvent.change(screen.getByLabelText(/Food & Dining scenario adjustment/i), { target: { value: '300' } });
-    await userEvent.click(screen.getByRole('button', { name: /See flight options/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Ask AI/i }));
 
     await waitFor(() => expect(onAsk).toHaveBeenCalled());
-    const context = onAsk.mock.calls[0][2] as string;
-    expect(context).toContain('Selected budget city: Galway');
-    expect(context).toContain('Scenario deltas JSON');
-    expect(context).toContain('budget-food');
+    expect(onAsk.mock.calls[0][2]).toContain('Request surface: Budget Intelligence Center.');
+    expect(onAsk.mock.calls[0][2]).toContain('Scenario deltas JSON');
+    expect(onAsk.mock.calls[0][2]).toContain('budget-food');
   });
 });

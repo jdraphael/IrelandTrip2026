@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { BudgetItem, DayPlan, Trip } from '../src/types';
 import {
   applyScenarioDeltas,
+  buildTravelerSpendBreakdown,
+  calculateBudgetHealth,
+  computeCitySpend,
   deriveBudgetIntelligence,
+  estimateSavings,
+  generateForecast,
   type BudgetFilterState,
   type ScenarioDelta
 } from '../src/lib/budgetIntelligence';
@@ -108,6 +113,41 @@ describe('budget intelligence derivation', () => {
     expect(intelligence.visibleCategories.map((item) => item.key)).toEqual(['food']);
     expect(intelligence.visibleCities.map((city) => city.city)).toEqual(['Galway']);
     expect(intelligence.activeInsight.message).toContain('Food & Dining');
+  });
+
+  it('derives health, forecast, savings, city spend, and traveler breakdown helpers', () => {
+    const intelligence = deriveBudgetIntelligence({
+      items: budgetItems,
+      itinerary,
+      trip,
+      filters: emptyFilters(),
+      scenarioDeltas: {}
+    });
+
+    const health = calculateBudgetHealth({
+      target: trip.budgetTarget,
+      planned: 15000,
+      actual: 2600,
+      remainingPlanned: 0,
+      remainingActual: 12400,
+      plannedPercent: 100,
+      actualPercent: 17
+    }, intelligence);
+    const forecast = generateForecast(budgetItems, itinerary, trip, { 'budget-food': { plannedDelta: 300 } });
+    const cities = computeCitySpend(budgetItems, itinerary, trip);
+    const savings = estimateSavings(intelligence.categories, intelligence.cities, trip);
+    const travelers = buildTravelerSpendBreakdown(budgetItems, trip);
+
+    expect(health.label).toBe('Healthy');
+    expect(health.score).toBeGreaterThan(70);
+    expect(forecast.projectedTotal).toBe(15300);
+    expect(forecast.confidence).toBeGreaterThan(0);
+    expect(cities.map((city) => city.city)).toContain('Galway');
+    expect(cities[0]).toHaveProperty('lodgingPressure');
+    expect(savings.amount).toBeGreaterThan(0);
+    expect(savings.recommendations[0]).toHaveProperty('confidence');
+    expect(travelers).toHaveLength(5);
+    expect(travelers[0]).toHaveProperty('perDay');
   });
 });
 

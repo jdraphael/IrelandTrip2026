@@ -1,4 +1,4 @@
-import type { BudgetItem, DayPlan, Trip } from '../types';
+import type { BudgetItem, BudgetSummary, DayPlan, Trip } from '../types';
 
 export type BudgetCategoryKey = 'flights' | 'lodging' | 'transportation' | 'food' | 'activities' | 'buffer' | 'fallback';
 export type SpendType = 'fixed' | 'flexible';
@@ -82,6 +82,59 @@ export interface BudgetInsight {
   title: string;
   message: string;
   tone: 'good' | 'watch' | 'alert';
+}
+
+export interface BudgetHealthScore {
+  score: number;
+  label: 'Healthy' | 'Watch' | 'Tight';
+  status: string;
+  plannedVsTargetPercent: number;
+  actualVsTargetPercent: number;
+}
+
+export interface BudgetForecast {
+  projectedTotal: number;
+  projectedActual: number;
+  projectedRemaining: number;
+  dailyAverage: number;
+  perTravelerPerDay: number;
+  confidence: number;
+  scenarioDelta: number;
+}
+
+export interface CitySpendProfile extends CityMetric {
+  lodgingPressure: number;
+  diningForecast: number;
+  parkingCosts: number;
+  activityDensity: number;
+  weatherImpact: number;
+  touristDemand: number;
+}
+
+export interface SavingsRecommendation {
+  id: string;
+  message: string;
+  amount: number;
+  confidence: 'High' | 'Medium' | 'Low';
+  source: string;
+}
+
+export interface SavingsEstimate {
+  amount: number;
+  score: number;
+  recommendations: SavingsRecommendation[];
+}
+
+export interface TravelerSpendProfile {
+  id: string;
+  label: string;
+  planned: number;
+  actual: number;
+  perDay: number;
+  lodgingShare: number;
+  foodShare: number;
+  activityShare: number;
+  transportationShare: number;
 }
 
 export interface BudgetIntelligence {
@@ -269,6 +322,130 @@ export function deriveBudgetIntelligence({
     insights,
     activeInsight
   };
+}
+
+export function calculateBudgetHealth(summary: BudgetSummary, intelligence: BudgetIntelligence): BudgetHealthScore {
+  const plannedVsTargetPercent = pct(intelligence.totalPlanned || summary.planned, summary.target);
+  const actualVsTargetPercent = pct(intelligence.totalActual || summary.actual, summary.target);
+  const scenarioPressure = Math.max(0, intelligence.totalScenarioDelta / Math.max(1, summary.target) * 100);
+  const score = Math.max(0, Math.min(100, Math.round(100 - actualVsTargetPercent - scenarioPressure * 0.45)));
+  const label: BudgetHealthScore['label'] = score >= 70 ? 'Healthy' : score >= 46 ? 'Watch' : 'Tight';
+  return {
+    score,
+    label,
+    status: label === 'Healthy' ? 'On track' : label === 'Watch' ? 'Monitor closely' : 'Action needed',
+    plannedVsTargetPercent,
+    actualVsTargetPercent
+  };
+}
+
+export function generateForecast(
+  items: BudgetItem[],
+  itinerary: DayPlan[],
+  trip: Trip | undefined,
+  scenarioDeltas: Record<string, ScenarioDelta>
+): BudgetForecast {
+  const projectedItems = applyScenarioDeltas(items, scenarioDeltas);
+  const projectedTotal = sum(projectedItems.map((item) => item.planned));
+  const projectedActual = sum(projectedItems.map((item) => item.actual));
+  const originalTotal = sum(items.map((item) => item.planned));
+  const routeDays = itinerary.filter((day) => !/flight|travel home/i.test(day.base));
+  const dayCount = Math.max(1, routeDays.length || itinerary.length || 13);
+  const travelers = Math.max(1, trip?.travelers || 5);
+  const scenarioDelta = projectedTotal - originalTotal;
+  const fixedShare = sum(projectedItems.filter((item) => spendTypeForCategory(budgetCategoryKey(item)) === 'fixed').map((item) => item.planned)) / Math.max(1, projectedTotal);
+  const confidence = Math.max(52, Math.min(92, Math.round(72 + fixedShare * 18 - Math.abs(scenarioDelta) / Math.max(1, projectedTotal) * 16)));
+  return {
+    projectedTotal,
+    projectedActual,
+    projectedRemaining: Math.max(0, (trip?.budgetTarget || projectedTotal) - projectedTotal),
+    dailyAverage: Math.round(projectedTotal / dayCount),
+    perTravelerPerDay: Math.round(projectedTotal / dayCount / travelers),
+    confidence,
+    scenarioDelta
+  };
+}
+
+export function computeCitySpend(items: BudgetItem[], itinerary: DayPlan[], trip?: Trip): CitySpendProfile[] {
+  const filters: BudgetFilterState = {
+    selectedCategory: undefined,
+    selectedCity: undefined,
+    dateRange: 'all',
+    traveler: 'all',
+    plannedActual: 'both',
+    spendType: 'all',
+    timelineMode: 'city',
+    scrubberPercent: 0
+  };
+  const intelligence = deriveBudgetIntelligence({ items, itinerary, trip, filters, scenarioDeltas: {} });
+  return intelligence.cities.map((city) => {
+    const lodgingShare = city.categories.lodging / Math.max(1, city.planned);
+    const foodShare = city.categories.food / Math.max(1, city.planned);
+    return {
+      ...city,
+      lodgingPressure: Math.min(100, Math.round(48 + lodgingShare * 70 + city.days.length * 4)),
+      diningForecast: Math.round(city.categories.food || city.dailyAverage * 0.22),
+      parkingCosts: Math.round((city.categories.transportation || city.dailyAverage * 0.12) * 0.18),
+      activityDensity: Math.min(100, Math.round(city.days.flatMap((day) => day.stops).filter((stop) => stop.kind === 'activity').length * 18 + city.familyScore * 0.28)),
+      weatherImpact: /Galway|Dingle|Cork/i.test(city.city) ? 74 : 52,
+      touristDemand: Math.min(100, Math.round(42 + city.percent * 1.2 + foodShare * 42))
+    };
+  });
+}
+
+export function estimateSavings(categories: CategoryMetric[], cities: CityMetric[], trip?: Trip): SavingsEstimate {
+  const lodging = categories.find((category) => category.key === 'lodging');
+  const flights = categories.find((category) => category.key === 'flights');
+  const food = categories.find((category) => category.key === 'food');
+  const highCostCity = cities[0];
+  const recommendations: SavingsRecommendation[] = [
+    {
+      id: 'midweek-flight',
+      message: 'Tuesday departure flexibility can reduce transatlantic fare pressure.',
+      amount: Math.max(180, Math.round((flights?.planned || 0) * 0.07)),
+      confidence: 'High',
+      source: 'Fare timing watch'
+    },
+    {
+      id: 'refundable-lodging',
+      message: `${highCostCity?.city || 'Galway'} refundable lodging holds protect the route before peak demand tightens.`,
+      amount: Math.max(160, Math.round((lodging?.planned || 0) * 0.06)),
+      confidence: 'High',
+      source: 'Itinerary lodging pressure'
+    },
+    {
+      id: 'aparthotel-meals',
+      message: 'Apartment breakfasts and flexible lunches keep premium dinners intact.',
+      amount: Math.max(90, Math.round((food?.planned || 0) * 0.08)),
+      confidence: 'Medium',
+      source: `${trip?.travelers || 5}-traveler dining model`
+    }
+  ];
+  const amount = sum(recommendations.map((recommendation) => recommendation.amount));
+  return {
+    amount,
+    score: Math.min(100, Math.round(amount / Math.max(1, sum(categories.map((category) => category.planned))) * 900)),
+    recommendations
+  };
+}
+
+export function buildTravelerSpendBreakdown(items: BudgetItem[], trip?: Trip): TravelerSpendProfile[] {
+  const travelers = Math.max(1, trip?.travelers || 5);
+  const totalPlanned = sum(items.map((item) => item.planned));
+  const totalActual = sum(items.map((item) => item.actual));
+  const dayCount = 13;
+  const categoryTotal = (key: BudgetCategoryKey, field: 'planned' | 'actual' = 'planned') => sum(items.filter((item) => budgetCategoryKey(item) === key).map((item) => item[field]));
+  return Array.from({ length: travelers }, (_value, index) => ({
+    id: `traveler-${index + 1}`,
+    label: index === 0 ? 'Traveler Lead' : `Traveler ${index + 1}`,
+    planned: Math.round(totalPlanned / travelers),
+    actual: Math.round(totalActual / travelers),
+    perDay: Math.round(totalPlanned / travelers / dayCount),
+    lodgingShare: Math.round(categoryTotal('lodging') / travelers),
+    foodShare: Math.round(categoryTotal('food') / travelers),
+    activityShare: Math.round(categoryTotal('activities') / travelers),
+    transportationShare: Math.round((categoryTotal('flights') + categoryTotal('transportation')) / travelers)
+  }));
 }
 
 function groupCityDays(days: DayPlan[]) {

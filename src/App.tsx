@@ -9,6 +9,7 @@ import { getTimeOfDayGreeting } from './lib/greeting';
 import type { BookingTask, BudgetItem, DayPlan, FamilyMember, PaymentTag, ResearchAnswer, ResearchDraft, SourceLink, Trip } from './types';
 
 type Tab = 'dashboard' | 'itinerary' | 'research' | 'map' | 'budget' | 'tasks' | 'sources';
+type BudgetViewMode = 'workspace' | 'intelligence';
 
 const loadBudgetDashboard = () => import('./components/BudgetDashboard').then((module) => ({ default: module.BudgetDashboard }));
 const loadChecklistDashboard = () => import('./components/ChecklistDashboard').then((module) => ({ default: module.ChecklistDashboard }));
@@ -43,6 +44,30 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof CalendarDays }> = [
   { id: 'tasks', label: 'Checklist', icon: FileCheck2 },
   { id: 'sources', label: 'Sources', icon: ShieldCheck }
 ];
+
+const tabPaths: Record<Tab, string> = {
+  dashboard: '/',
+  itinerary: '/itinerary',
+  research: '/research',
+  map: '/map',
+  budget: '/budget',
+  tasks: '/checklist',
+  sources: '/sources'
+};
+
+function tabFromPath(pathname: string): Tab {
+  if (pathname.startsWith('/budget')) return 'budget';
+  if (pathname.startsWith('/itinerary')) return 'itinerary';
+  if (pathname.startsWith('/research')) return 'research';
+  if (pathname.startsWith('/map')) return 'map';
+  if (pathname.startsWith('/checklist') || pathname.startsWith('/tasks')) return 'tasks';
+  if (pathname.startsWith('/sources')) return 'sources';
+  return 'dashboard';
+}
+
+function budgetViewFromPath(pathname: string): BudgetViewMode {
+  return pathname.startsWith('/budget/intelligence') ? 'intelligence' : 'workspace';
+}
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -116,16 +141,28 @@ function BrandMark() {
   );
 }
 
-function NavigationItems({ activeTab, onSelect }: { activeTab: Tab; onSelect: (tab: Tab) => void }) {
+function NavigationItems({ activeTab, budgetView, onSelect }: { activeTab: Tab; budgetView: BudgetViewMode; onSelect: (tab: Tab, budgetView?: BudgetViewMode) => void }) {
   return (
     <>
       {tabs.map((item) => {
         const Icon = item.icon;
         return (
-          <button className={activeTab === item.id ? 'active' : ''} key={item.id} onPointerEnter={() => preloadTab(item.id)} onFocus={() => preloadTab(item.id)} onClick={() => onSelect(item.id)} aria-label={item.label} title={item.label} data-tooltip={item.label}>
-            <Icon size={18} />
-            <span className="nav-label">{item.label}</span>
-          </button>
+          <div className={`nav-item-shell ${item.id === 'budget' ? 'nav-item-budget' : ''}`} key={item.id}>
+            <button className={activeTab === item.id ? 'active' : ''} onPointerEnter={() => preloadTab(item.id)} onFocus={() => preloadTab(item.id)} onClick={() => onSelect(item.id)} aria-label={item.label} title={item.label} data-tooltip={item.label}>
+              <Icon size={18} />
+              <span className="nav-label">{item.label}</span>
+            </button>
+            {item.id === 'budget' && activeTab === 'budget' && (
+              <div className="budget-nav-subnav" aria-label="Budget sections">
+                <button type="button" className={budgetView === 'workspace' ? 'active' : ''} onClick={() => onSelect('budget', 'workspace')}>
+                  <span>Workspace</span>
+                </button>
+                <button type="button" className={budgetView === 'intelligence' ? 'active' : ''} onClick={() => onSelect('budget', 'intelligence')}>
+                  <span>Intelligence</span>
+                </button>
+              </div>
+            )}
+          </div>
         );
       })}
     </>
@@ -1573,7 +1610,8 @@ function SourcesView({ sources, onCheck }: { sources?: SourcesResponse; onCheck:
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [tab, setTab] = useState<Tab>(() => tabFromPath(window.location.pathname));
+  const [budgetView, setBudgetView] = useState<BudgetViewMode>(() => budgetViewFromPath(window.location.pathname));
   const [selectedDayId, setSelectedDayId] = useState('day-3');
   const [state, setState] = useState<AppState>({ itinerary: [], research: [] });
   const [navCollapsed, setNavCollapsed] = useState(false);
@@ -1614,6 +1652,17 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const onPopState = () => {
+      setTab(tabFromPath(window.location.pathname));
+      setBudgetView(budgetViewFromPath(window.location.pathname));
+      setBrowserCollapsed(false);
+      setMobileNavOpen(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   const login = async () => {
     setError('');
     try {
@@ -1635,10 +1684,16 @@ export default function App() {
 
   const activeSources = useMemo(() => state.sources?.items || [], [state.sources]);
 
-  const selectTab = (nextTab: Tab) => {
+  const selectTab = (nextTab: Tab, nextBudgetView: BudgetViewMode = 'workspace') => {
     setTab(nextTab);
+    const normalizedBudgetView = nextTab === 'budget' ? nextBudgetView : 'workspace';
+    setBudgetView(normalizedBudgetView);
     setBrowserCollapsed(false);
     setMobileNavOpen(false);
+    const nextPath = nextTab === 'budget' && normalizedBudgetView === 'intelligence' ? '/budget/intelligence' : tabPaths[nextTab];
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath);
+    }
   };
 
   const saveItinerary = async (updates: Partial<DayPlan>[]) => {
@@ -1739,7 +1794,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'map' ? 'map-shell' : ''} ${tab === 'budget' ? 'budget-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
+    <main className={`app-shell ${tab === 'dashboard' ? 'dashboard-shell' : ''} ${tab === 'itinerary' ? 'itinerary-shell' : ''} ${tab === 'research' ? 'research-shell' : ''} ${tab === 'map' ? 'map-shell' : ''} ${tab === 'budget' ? 'budget-shell' : ''} ${tab === 'budget' && budgetView === 'intelligence' ? 'budget-intelligence-shell' : ''} ${tab === 'tasks' ? 'checklist-shell' : ''} ${navCollapsed ? 'nav-collapsed' : ''} ${browserCollapsed ? 'browser-collapsed-shell' : ''}`} data-testid="app-shell" style={dashboardAssetStyle}>
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -1759,11 +1814,11 @@ export default function App() {
           </div>
         </div>
         <nav className="desktop-nav" aria-label="Primary navigation">
-          <NavigationItems activeTab={tab} onSelect={selectTab} />
+          <NavigationItems activeTab={tab} budgetView={budgetView} onSelect={selectTab} />
           <CurrencyHeaderTile variant="nav" />
         </nav>
         <div className={`mobile-nav-drawer ${mobileNavOpen ? 'open' : ''}`} aria-label="Mobile navigation" aria-hidden={mobileNavOpen ? 'false' : 'true'}>
-          <NavigationItems activeTab={tab} onSelect={selectTab} />
+          <NavigationItems activeTab={tab} budgetView={budgetView} onSelect={selectTab} />
           <CurrencyHeaderTile variant="nav" />
         </div>
         {!navCollapsed && (
@@ -1792,7 +1847,7 @@ export default function App() {
         )}
       </aside>
       <section className="workspace">
-        {tab !== 'tasks' && tab !== 'map' && <header className="topbar">
+        {tab !== 'tasks' && tab !== 'map' && !(tab === 'budget' && budgetView === 'intelligence') && <header className="topbar">
           <div>
             {tab === 'dashboard' ? (
               <p className="dashboard-greeting">{greeting}! <span aria-hidden="true">👋</span></p>
@@ -1835,7 +1890,19 @@ export default function App() {
             )}
             {tab === 'budget' && (
               <Suspense fallback={<WorkspaceLoading label="budget intelligence" />}>
-                <BudgetDashboard budget={state.budget} trip={state.trip} itinerary={state.itinerary} sources={activeSources} onSave={saveBudget} onAsk={askResearch} onApplyDraft={applyDraft} onDismissDraft={dismissDraft} />
+                <BudgetDashboard
+                  budget={state.budget}
+                  trip={state.trip}
+                  itinerary={state.itinerary}
+                  sources={activeSources}
+                  view={budgetView}
+                  onOpenWorkspace={() => selectTab('budget', 'workspace')}
+                  onOpenIntelligence={() => selectTab('budget', 'intelligence')}
+                  onSave={saveBudget}
+                  onAsk={askResearch}
+                  onApplyDraft={applyDraft}
+                  onDismissDraft={dismissDraft}
+                />
               </Suspense>
             )}
             {tab === 'tasks' && (
