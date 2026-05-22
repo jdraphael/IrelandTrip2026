@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TasksResponse } from '../src/api';
 import App from '../src/App';
 
@@ -31,6 +31,10 @@ const familyMembersResponse = [
 ];
 
 describe('Ireland trip app', () => {
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
   const richTasksResponse: TasksResponse = {
     items: [
       {
@@ -212,7 +216,7 @@ describe('Ireland trip app', () => {
     expect(screen.getAllByText('€15,000').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('€5,350')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Flights & Transportation/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /AI Budget Intelligence/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Quick Intelligence/i })).toBeInTheDocument();
     expect(screen.queryByText(/Target/i)).not.toBeInTheDocument();
 
     const lodgingCard = screen.getByLabelText(/Budget category Lodging & Stays/i);
@@ -226,7 +230,7 @@ describe('Ireland trip app', () => {
       body: JSON.stringify([{ id: 'budget-lodging', planned: 3450 }])
     }));
 
-    await userEvent.click(screen.getByRole('button', { name: /See flight options/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Ask AI About Savings/i }));
 
     expect(await screen.findByText(/Tuesday and Wednesday departure checks/i)).toBeInTheDocument();
     expect(screen.getByText(/Verify baggage and seat fees/i)).toBeInTheDocument();
@@ -235,7 +239,7 @@ describe('Ireland trip app', () => {
 
     const researchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/api/research') && (init as RequestInit | undefined)?.method === 'POST');
     const researchBody = JSON.parse((researchCall?.[1] as RequestInit).body as string);
-    expect(researchBody.context).toContain('Request surface: Budget AI Intelligence rail.');
+    expect(researchBody.context).toContain('Request surface: Budget Workspace.');
     expect(researchBody.context).toContain('"id":"budget-flights"');
     expect(researchBody.context).toContain('1 USD = 0.85 EUR');
 
@@ -268,7 +272,7 @@ describe('Ireland trip app', () => {
     await screen.findByText('Ireland Family Trip');
     await userEvent.click(screen.getByRole('button', { name: /^Budget$/i }));
     await screen.findByRole('heading', { name: /Ireland Expedition Budget/i }, { timeout: 30000 });
-    await userEvent.click(await screen.findByRole('button', { name: /Review options/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /Ask AI About Savings/i }));
 
     expect(await screen.findByText(/Research temporarily unavailable/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Retry Budget AI/i })).toBeInTheDocument();
