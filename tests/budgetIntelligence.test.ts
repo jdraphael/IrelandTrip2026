@@ -136,7 +136,7 @@ describe('budget intelligence derivation', () => {
     const forecast = generateForecast(budgetItems, itinerary, trip, { 'budget-food': { plannedDelta: 300 } });
     const cities = computeCitySpend(budgetItems, itinerary, trip);
     const savings = estimateSavings(intelligence.categories, intelligence.cities, trip);
-    const travelers = buildTravelerSpendBreakdown(budgetItems, trip);
+    const travelers = buildTravelerSpendBreakdown(budgetItems, itinerary, trip);
 
     expect(health.label).toBe('Healthy');
     expect(health.score).toBeGreaterThan(70);
@@ -148,6 +148,33 @@ describe('budget intelligence derivation', () => {
     expect(savings.recommendations[0]).toHaveProperty('confidence');
     expect(travelers).toHaveLength(5);
     expect(travelers[0]).toHaveProperty('perDay');
+  });
+
+  it('propagates active scenario deltas into city spend analytics', () => {
+    const baselineCities = computeCitySpend(budgetItems, itinerary, trip);
+    const scenarioCities = computeCitySpend(budgetItems, itinerary, trip, {
+      'budget-food': { plannedDelta: 600 }
+    });
+
+    const baselineGalway = baselineCities.find((city) => city.city === 'Galway');
+    const scenarioGalway = scenarioCities.find((city) => city.city === 'Galway');
+
+    expect(scenarioGalway?.planned).toBeGreaterThan(baselineGalway?.planned || 0);
+    expect(scenarioGalway?.categories.food).toBeGreaterThan(baselineGalway?.categories.food || 0);
+  });
+
+  it('uses real trip dates for traveler per-day spend math', () => {
+    const shortTrip: Trip = {
+      ...trip,
+      startDate: '2027-06-01',
+      endDate: '2027-06-03',
+      travelers: 2
+    };
+
+    const travelers = buildTravelerSpendBreakdown(budgetItems, itinerary, shortTrip);
+
+    expect(travelers).toHaveLength(2);
+    expect(travelers[0].perDay).toBe(Math.round(15000 / 2 / 3));
   });
 });
 
