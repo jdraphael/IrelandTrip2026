@@ -238,7 +238,7 @@ export function deriveBudgetIntelligence({
     const original = items.find((saved) => saved.id === item.id);
     return acc + item.planned - (original?.planned || 0);
   }, 0);
-  const routeDays = itinerary.filter((day) => !/flight|travel home/i.test(day.base));
+  const routeDays = activeRouteDays(itinerary);
   const cityGroups = groupCityDays(routeDays);
 
   const categories = projectedItems.map<CategoryMetric>((item) => {
@@ -271,7 +271,7 @@ export function deriveBudgetIntelligence({
   const insights = deriveInsights(categories, cities, filters, totalScenarioDelta);
   const activeInsight = activeInsightFor(filters, insights, categories, cities);
 
-  const dayCount = Math.max(1, routeDays.length || itinerary.length || 13);
+  const dayCount = tripDayCount(itinerary, trip);
   const travelerCount = Math.max(1, trip?.travelers || 5);
   const perDay = Math.round(totalPlanned / dayCount);
   const perTravelerPerDay = Math.round(perDay / travelerCount);
@@ -349,8 +349,7 @@ export function generateForecast(
   const projectedTotal = sum(projectedItems.map((item) => item.planned));
   const projectedActual = sum(projectedItems.map((item) => item.actual));
   const originalTotal = sum(items.map((item) => item.planned));
-  const routeDays = itinerary.filter((day) => !/flight|travel home/i.test(day.base));
-  const dayCount = Math.max(1, routeDays.length || itinerary.length || 13);
+  const dayCount = tripDayCount(itinerary, trip);
   const travelers = Math.max(1, trip?.travelers || 5);
   const scenarioDelta = projectedTotal - originalTotal;
   const fixedShare = sum(projectedItems.filter((item) => spendTypeForCategory(budgetCategoryKey(item)) === 'fixed').map((item) => item.planned)) / Math.max(1, projectedTotal);
@@ -366,7 +365,12 @@ export function generateForecast(
   };
 }
 
-export function computeCitySpend(items: BudgetItem[], itinerary: DayPlan[], trip?: Trip): CitySpendProfile[] {
+export function computeCitySpend(
+  items: BudgetItem[],
+  itinerary: DayPlan[],
+  trip?: Trip,
+  scenarioDeltas: Record<string, ScenarioDelta> = {}
+): CitySpendProfile[] {
   const filters: BudgetFilterState = {
     selectedCategory: undefined,
     selectedCity: undefined,
@@ -377,7 +381,7 @@ export function computeCitySpend(items: BudgetItem[], itinerary: DayPlan[], trip
     timelineMode: 'city',
     scrubberPercent: 0
   };
-  const intelligence = deriveBudgetIntelligence({ items, itinerary, trip, filters, scenarioDeltas: {} });
+  const intelligence = deriveBudgetIntelligence({ items, itinerary, trip, filters, scenarioDeltas });
   return intelligence.cities.map((city) => {
     const lodgingShare = city.categories.lodging / Math.max(1, city.planned);
     const foodShare = city.categories.food / Math.max(1, city.planned);
@@ -429,11 +433,11 @@ export function estimateSavings(categories: CategoryMetric[], cities: CityMetric
   };
 }
 
-export function buildTravelerSpendBreakdown(items: BudgetItem[], trip?: Trip): TravelerSpendProfile[] {
+export function buildTravelerSpendBreakdown(items: BudgetItem[], itinerary: DayPlan[] = [], trip?: Trip): TravelerSpendProfile[] {
   const travelers = Math.max(1, trip?.travelers || 5);
   const totalPlanned = sum(items.map((item) => item.planned));
   const totalActual = sum(items.map((item) => item.actual));
-  const dayCount = 13;
+  const dayCount = tripDayCount(itinerary, trip);
   const categoryTotal = (key: BudgetCategoryKey, field: 'planned' | 'actual' = 'planned') => sum(items.filter((item) => budgetCategoryKey(item) === key).map((item) => item[field]));
   return Array.from({ length: travelers }, (_value, index) => ({
     id: `traveler-${index + 1}`,
@@ -455,6 +459,29 @@ function groupCityDays(days: DayPlan[]) {
     groups.set(city, [...(groups.get(city) || []), day]);
   });
   return Array.from(groups.entries()).map(([city, cityDays]) => ({ city, days: cityDays }));
+}
+
+function activeRouteDays(itinerary: DayPlan[]) {
+  return itinerary.filter((day) => !/flight|travel home/i.test(day.base));
+}
+
+function tripDayCount(itinerary: DayPlan[], trip?: Trip) {
+  const start = parseDateOnly(trip?.startDate);
+  const end = parseDateOnly(trip?.endDate);
+  if (start && end && end >= start) {
+    const millisecondsPerDay = 24 * 60 * 60 * 1000;
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / millisecondsPerDay) + 1);
+  }
+  const routeDays = activeRouteDays(itinerary);
+  return Math.max(1, routeDays.length || itinerary.length || 13);
+}
+
+function parseDateOnly(value?: string) {
+  if (!value) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return undefined;
+  const [, year, month, day] = match;
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
 }
 
 function deriveCityMetrics(

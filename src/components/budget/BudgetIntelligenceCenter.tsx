@@ -66,9 +66,9 @@ export function BudgetIntelligenceCenter({
   const intelligence = useMemo(() => deriveBudgetIntelligence({ items, itinerary, trip, filters, scenarioDeltas }), [items, itinerary, trip, filters, scenarioDeltas]);
   const health = useMemo(() => summary ? calculateBudgetHealth(summary, intelligence) : undefined, [summary, intelligence]);
   const forecast = useMemo(() => generateForecast(items, itinerary, trip, scenarioDeltas), [items, itinerary, trip, scenarioDeltas]);
-  const cities = useMemo(() => computeCitySpend(items, itinerary, trip), [items, itinerary, trip]);
+  const cities = useMemo(() => computeCitySpend(items, itinerary, trip, scenarioDeltas), [items, itinerary, trip, scenarioDeltas]);
   const savings = useMemo(() => estimateSavings(intelligence.categories, intelligence.cities, trip), [intelligence.categories, intelligence.cities, trip]);
-  const travelers = useMemo(() => buildTravelerSpendBreakdown(items, trip), [items, trip]);
+  const travelers = useMemo(() => buildTravelerSpendBreakdown(items, itinerary, trip), [items, itinerary, trip]);
   const activeAnswer = answers.find((answer) => answer.id === activeAnswerId) || answers[0];
 
   if (!budget || !summary || !health) return null;
