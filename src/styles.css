@@ -4960,7 +4960,7 @@ textarea {
 
 .budget-intelligence-center {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   margin: -18px -28px -90px;
   color: #fff8e9;
@@ -4971,14 +4971,8 @@ textarea {
 }
 
 .budget-intelligence-shell {
-  display: block;
   min-height: 100vh;
   background: #020a0d;
-}
-
-.budget-intelligence-shell > .sidebar,
-.budget-intelligence-shell > .bottom-nav {
-  display: none;
 }
 
 .budget-intelligence-shell > .workspace {
@@ -4989,6 +4983,10 @@ textarea {
 
 .budget-intelligence-shell .budget-intelligence-center {
   margin: 0;
+}
+
+.budget-intelligence-center > .budget-intel-sidebar {
+  display: none;
 }
 
 .budget-intel-sidebar {

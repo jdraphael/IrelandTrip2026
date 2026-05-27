@@ -132,6 +132,8 @@ describe('BudgetIntelligenceCenter', () => {
     expect(screen.getByRole('heading', { name: /Scenario Simulator/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Route Spend Timeline/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Mobile intelligence sections/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Budget intelligence navigation/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Settings$/i })).not.toBeInTheDocument();
   });
 
   it('keeps scenario changes temporary until explicit save', () => {

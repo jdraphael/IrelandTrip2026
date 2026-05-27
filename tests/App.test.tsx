@@ -810,6 +810,37 @@ describe('Ireland trip app', () => {
     expect(within(dialog).getByText(/Travel conversion/i)).toBeInTheDocument();
   });
 
+  it('keeps the standard app navigation active inside budget intelligence', async () => {
+    window.history.replaceState({}, '', '/budget/intelligence');
+    const baseFetch = stubChecklistApp();
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/budget')) return Promise.resolve(Response.json({
+        items: [
+          { id: 'budget-flights', category: 'Flights', label: 'LEX to Dublin roundtrip for five', planned: 6000, actual: 1200, status: 'watching' },
+          { id: 'budget-lodging', category: 'Lodging', label: 'Hotels and farm stays', planned: 3200, actual: 800, status: 'researching' },
+          { id: 'budget-food', category: 'Food', label: 'Restaurants and groceries', planned: 2000, actual: 300, status: 'researching' }
+        ],
+        summary: { target: 15000, planned: 11200, actual: 2300, remainingPlanned: 3800, remainingActual: 12700, plannedPercent: 75, actualPercent: 15 }
+      }));
+      return baseFetch(url, init);
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByText('Ireland Family Trip')).toBeInTheDocument();
+    expect(screen.getByTestId('app-shell')).toHaveClass('budget-intelligence-shell');
+    expect(screen.queryByLabelText(/Budget intelligence navigation/i)).not.toBeInTheDocument();
+
+    const primaryNav = screen.getByLabelText('Primary navigation');
+    expect(within(primaryNav).getByRole('button', { name: /^Dashboard$/i })).toBeInTheDocument();
+    expect(within(primaryNav).getByRole('button', { name: /^Budget$/i })).toBeInTheDocument();
+
+    await userEvent.click(within(primaryNav).getByRole('button', { name: /^Map$/i }));
+
+    expect(window.location.pathname).toBe('/map');
+    expect(await screen.findByRole('heading', { name: /Ireland Expedition Route/i })).toBeInTheDocument();
+  }, 30000);
+
   it('collapses and expands the browser workspace view', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/api/auth/session')) return Promise.resolve(Response.json({ authRequired: false, authenticated: true }));
