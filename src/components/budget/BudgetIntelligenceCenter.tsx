@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, CalendarDays, Download, Home, Loader2, Map, Settings, Sparkles, Users } from 'lucide-react';
+import { CalendarDays, Download, Loader2, Sparkles, Users } from 'lucide-react';
 import type { ResearchAnswer, ResearchDraft } from '../../types';
 import {
   buildTravelerSpendBreakdown,
@@ -123,7 +123,7 @@ export function BudgetIntelligenceCenter({
 
   return (
     <section className="budget-intelligence-center">
-      <aside className="budget-intel-sidebar" aria-label="Budget intelligence navigation">
+      <aside className="budget-intel-sidebar" aria-label="Budget intelligence context">
         <div className="budget-intel-brand">
           <span>☘</span>
           <div>
@@ -131,14 +131,6 @@ export function BudgetIntelligenceCenter({
             <small>Budget Intelligence Center</small>
           </div>
         </div>
-        <nav>
-          <button type="button"><Home size={17} /> Overview</button>
-          <button type="button"><CalendarDays size={17} /> Itinerary</button>
-          <button type="button"><Map size={17} /> Map</button>
-          <button type="button" className="active"><Sparkles size={17} /> Intelligence</button>
-          <button type="button"><Bot size={17} /> AI Assistant</button>
-          <button type="button"><Settings size={17} /> Settings</button>
-        </nav>
         <div className="budget-intel-sidebar-photo">
           <strong>Slainte to adventure.</strong>
         </div>
